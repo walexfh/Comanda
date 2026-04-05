@@ -16,6 +16,7 @@ import AdminCaixa from "@/pages/admin/caixa";
 import AdminRelatorios from "@/pages/admin/relatorios";
 import GarcomMesas from "@/pages/garcom/index";
 import GarcomPedido from "@/pages/garcom/pedido";
+import GarcomFechar from "@/pages/garcom/fechar";
 import PublicMenu from "@/pages/menu";
 import Cadastro from "@/pages/cadastro";
 
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/admin/relatorios" component={AdminRelatorios} />
       <Route path="/garcom" component={GarcomMesas} />
       <Route path="/garcom/pedido/:tableId" component={GarcomPedido} />
+      <Route path="/garcom/fechar/:tableId" component={GarcomFechar} />
       <Route path="/menu/:tenantSlug" component={PublicMenu} />
       <Route component={NotFound} />
     </Switch>
