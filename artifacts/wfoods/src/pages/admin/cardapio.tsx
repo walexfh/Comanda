@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Printer } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -224,25 +224,31 @@ export default function AdminCardapio() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="prodSector">Setor de Impressão</Label>
-                      <Select value={prodSector} onValueChange={setProdSector}>
-                        <SelectTrigger id="prodSector">
-                          <SelectValue placeholder="Opcional" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cozinha">Cozinha</SelectItem>
-                          <SelectItem value="bar">Bar</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Printer className="w-3.5 h-3.5" />
+                      Impressora de destino
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "cozinha", label: "🍳 Cozinha", color: "border-orange-500 bg-orange-500/10 text-orange-400" },
+                        { value: "bar", label: "🍺 Bar", color: "border-blue-500 bg-blue-500/10 text-blue-400" },
+                        { value: "", label: "Nenhuma", color: "border-muted-foreground/30 text-muted-foreground" },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setProdSector(opt.value)}
+                          className={`rounded-md border-2 px-2 py-2.5 text-sm font-medium transition-all text-center ${prodSector === opt.value ? opt.color : "border-muted-foreground/20 text-muted-foreground/60 hover:border-muted-foreground/40"}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
-                    <div className="space-y-2 flex flex-col justify-end pb-2">
-                      <div className="flex items-center gap-2">
-                        <Switch id="prodAvail" checked={prodAvail} onCheckedChange={setProdAvail} />
-                        <Label htmlFor="prodAvail">Disponível</Label>
-                      </div>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch id="prodAvail" checked={prodAvail} onCheckedChange={setProdAvail} />
+                    <Label htmlFor="prodAvail">Disponível no cardápio</Label>
                   </div>
                   <Button className="w-full mt-4" onClick={handleSaveProduct}>Salvar Produto</Button>
                 </div>
@@ -264,7 +270,16 @@ export default function AdminCardapio() {
                       <div className="flex gap-4 mt-2 text-sm">
                         <span className="font-medium text-accent">{formatCurrency(prod.price)}</span>
                         <span className="text-muted-foreground">Cat: {categories?.find(c => c.id === prod.categoryId)?.name || 'N/A'}</span>
-                        {prod.printSector && <span className="text-muted-foreground">Setor: {prod.printSector}</span>}
+                        {prod.printSector === "cozinha" && (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/30">
+                            <Printer className="w-3 h-3" /> Cozinha
+                          </span>
+                        )}
+                        {prod.printSector === "bar" && (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                            <Printer className="w-3 h-3" /> Bar
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
