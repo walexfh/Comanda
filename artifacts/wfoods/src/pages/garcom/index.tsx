@@ -1,7 +1,7 @@
 import { GarcomLayout } from "@/components/garcom-layout";
 import { useListTables, useListOrders } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { format } from "date-fns";
-import { Plus, Receipt, Pencil, X, Lock, ChevronDown } from "lucide-react";
+import { ptBR } from "date-fns/locale";
+import { Plus, Receipt, Pencil, X, Lock, ChevronDown, History, RotateCcw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Order = NonNullable<ReturnType<typeof useListOrders>["data"]>[number];
 type Table = NonNullable<ReturnType<typeof useListTables>["data"]>[number];
@@ -18,8 +20,10 @@ type Table = NonNullable<ReturnType<typeof useListTables>["data"]>[number];
 export default function GarcomMesas() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: tables, isLoading: isLoadingTables } = useListTables();
   const { data: allOrders } = useListOrders({});
+  const { data: finalizedOrders } = useListOrders({ status: "finalizado" });
 
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showCancel, setShowCancel] = useState(false);
@@ -27,11 +31,53 @@ export default function GarcomMesas() {
   const [cancelPassword, setCancelPassword] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  const [showHistory, setShowHistory] = useState(false);
+  const [reactivateTable, setReactivateTable] = useState<{ tableId: number; tableNumber: number | string; orderIds: number[] } | null>(null);
+  const [reactivatePassword, setReactivatePassword] = useState("");
+  const [reactivateLoading, setReactivateLoading] = useState(false);
+
   const activeOrders = (tableId: number) =>
     allOrders?.filter(o => o.tableId === tableId && o.status !== "finalizado" && o.status !== "cancelado") ?? [];
 
   const selectedActiveOrders = selectedTable ? activeOrders(selectedTable.id) : [];
   const isOccupied = selectedActiveOrders.length > 0;
+
+  const tableMap = useMemo(() => {
+    const map: Record<number, number | string> = {};
+    tables?.forEach(t => { map[t.id] = t.number; });
+    return map;
+  }, [tables]);
+
+  const historySessions = useMemo(() => {
+    if (!finalizedOrders || finalizedOrders.length === 0) return [];
+
+    const byTable: Record<number, Order[]> = {};
+    for (const order of finalizedOrders) {
+      if (!order.tableId) continue;
+      if (!byTable[order.tableId]) byTable[order.tableId] = [];
+      byTable[order.tableId].push(order);
+    }
+
+    return Object.entries(byTable)
+      .map(([tableIdStr, orders]) => {
+        const tableId = parseInt(tableIdStr);
+        const sorted = [...orders].sort((a, b) =>
+          new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
+        );
+        const latest = sorted[0];
+        const total = orders.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0);
+        return {
+          tableId,
+          tableNumber: tableMap[tableId] ?? tableId,
+          orders,
+          latestAt: latest.updatedAt ?? latest.createdAt,
+          total,
+          orderIds: orders.map(o => o.id),
+        };
+      })
+      .sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime())
+      .slice(0, 20);
+  }, [finalizedOrders, tableMap]);
 
   const closeModal = () => {
     setSelectedTable(null);
@@ -44,7 +90,8 @@ export default function GarcomMesas() {
     if (!cancelOrderId || !cancelPassword || !user) return;
     setCancelLoading(true);
     try {
-      const verifyRes = await fetch("/api/auth/waiter/login", {
+      const base = import.meta.env.BASE_URL ?? "/";
+      const verifyRes = await fetch(`${base}api/auth/waiter/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: user.name, password: cancelPassword, tenantSlug: user.tenantSlug }),
@@ -57,7 +104,7 @@ export default function GarcomMesas() {
       }
 
       const token = localStorage.getItem("wfoods_token");
-      const cancelRes = await fetch(`/api/orders/${cancelOrderId}`, {
+      const cancelRes = await fetch(`${base}api/orders/${cancelOrderId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -69,11 +116,51 @@ export default function GarcomMesas() {
       }
 
       toast.success("Pedido cancelado com sucesso");
+      queryClient.invalidateQueries();
       closeModal();
     } catch {
       toast.error("Erro ao cancelar pedido");
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!reactivateTable || !reactivatePassword || !user) return;
+    setReactivateLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL ?? "/";
+
+      const verifyRes = await fetch(`${base}api/auth/waiter/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: user.name, password: reactivatePassword, tenantSlug: user.tenantSlug }),
+      });
+
+      if (!verifyRes.ok) {
+        toast.error("Senha incorreta");
+        setReactivateLoading(false);
+        return;
+      }
+
+      const token = localStorage.getItem("wfoods_token");
+      const reopenRes = await fetch(`${base}api/tables/${reactivateTable.tableId}/reopen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orderIds: reactivateTable.orderIds }),
+      });
+
+      if (!reopenRes.ok) throw new Error();
+
+      toast.success(`Mesa ${reactivateTable.tableNumber} reativada! Os pedidos voltaram para 'Pronto'.`);
+      queryClient.invalidateQueries();
+      setReactivateTable(null);
+      setReactivatePassword("");
+      setShowHistory(false);
+    } catch {
+      toast.error("Erro ao reativar mesa");
+    } finally {
+      setReactivateLoading(false);
     }
   };
 
@@ -116,6 +203,20 @@ export default function GarcomMesas() {
         )}
       </div>
 
+      {/* Histórico button */}
+      <div className="px-3 pb-4">
+        <button
+          onClick={() => setShowHistory(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors text-sm font-medium"
+        >
+          <History className="w-4 h-4" />
+          Histórico de Mesas
+          {historySessions.length > 0 && (
+            <Badge variant="secondary" className="ml-1 text-xs">{historySessions.length}</Badge>
+          )}
+        </button>
+      </div>
+
       {/* Table options modal */}
       <Dialog open={!!selectedTable} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="sm:max-w-sm p-0 gap-0 overflow-hidden">
@@ -138,7 +239,6 @@ export default function GarcomMesas() {
           </DialogHeader>
 
           <div className="p-4 space-y-3">
-            {/* Active orders summary */}
             {isOccupied && (
               <div className="space-y-2">
                 {selectedActiveOrders.map((order) => (
@@ -177,7 +277,6 @@ export default function GarcomMesas() {
               </div>
             )}
 
-            {/* Main actions */}
             <div className="grid gap-2">
               <Button
                 className="w-full gap-2 h-12 text-base"
@@ -216,7 +315,6 @@ export default function GarcomMesas() {
                 </button>
               )}
 
-              {/* Cancel form */}
               {isOccupied && showCancel && (
                 <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
                   {selectedActiveOrders.length > 1 && (
@@ -257,6 +355,91 @@ export default function GarcomMesas() {
                 </div>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* History modal */}
+      <Dialog open={showHistory} onOpenChange={(open) => { if (!open) { setShowHistory(false); setReactivateTable(null); setReactivatePassword(""); } }}>
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden max-h-[85vh] flex flex-col">
+          <DialogHeader className="p-4 border-b border-border flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Histórico de Mesas
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Mesas fechadas recentemente. Para reativar, use sua senha.
+            </p>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 p-4 space-y-3">
+            {historySessions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Nenhum histórico encontrado.</p>
+              </div>
+            ) : (
+              historySessions.map(session => (
+                <div key={session.tableId} className="border border-border rounded-xl p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">Mesa {session.tableNumber}</span>
+                        <Badge variant="secondary" className="text-xs bg-gray-500/10 text-gray-400">Fechada</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {format(new Date(session.latestAt), "dd/MM HH:mm", { locale: ptBR })} • {session.orders.length} pedido{session.orders.length !== 1 ? "s" : ""} • {formatCurrency(session.total)}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 flex-shrink-0 h-8"
+                      onClick={() => {
+                        setReactivateTable({
+                          tableId: session.tableId,
+                          tableNumber: session.tableNumber,
+                          orderIds: session.orderIds,
+                        });
+                        setReactivatePassword("");
+                      }}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reativar
+                    </Button>
+                  </div>
+
+                  {reactivateTable?.tableId === session.tableId && (
+                    <div className="mt-3 pt-3 border-t border-border space-y-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Lock className="w-3 h-3" />
+                        Digite sua senha para confirmar a reativação
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          placeholder="Sua senha"
+                          value={reactivatePassword}
+                          onChange={e => setReactivatePassword(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && handleReactivate()}
+                          className="flex-1 h-9 text-sm"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="gap-1.5 h-9"
+                          disabled={!reactivatePassword || reactivateLoading}
+                          onClick={handleReactivate}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          {reactivateLoading ? "..." : "Confirmar"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

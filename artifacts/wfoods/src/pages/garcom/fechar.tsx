@@ -69,6 +69,7 @@ export default function GarcomFecharConta() {
       const token = localStorage.getItem("wfoods_token");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
+      const base = import.meta.env.BASE_URL ?? "/";
 
       await Promise.all(
         activeOrders.map(order =>
@@ -76,13 +77,27 @@ export default function GarcomFecharConta() {
         )
       );
 
-      await fetch("/api/payments", {
+      await fetch(`${base}api/payments`, {
         method: "POST",
         headers,
         body: JSON.stringify({
           orderId: activeOrders[0]?.id,
           amount: totalWithFee,
           method,
+        }),
+      });
+
+      await fetch(`${base}api/tables/${tableId}/close-receipt`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          tableNumber,
+          method,
+          items: allItems,
+          subtotal,
+          serviceFee,
+          total: totalWithFee,
+          timestamp: new Date().toISOString(),
         }),
       });
 

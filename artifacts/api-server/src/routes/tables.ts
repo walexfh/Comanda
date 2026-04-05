@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, tablesTable } from "@workspace/db";
+import { eq, and, gte } from "drizzle-orm";
+import { db, tablesTable, ordersTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
+import { broadcast } from "../lib/ws";
 import {
   CreateTableBody,
   UpdateTableBody,
@@ -80,6 +81,70 @@ router.delete("/tables/:tableId", requireAuth, async (req: AuthenticatedRequest,
 
   await db.delete(tablesTable).where(eq(tablesTable.id, params.data.tableId));
   res.sendStatus(204);
+});
+
+router.post("/tables/:tableId/close-receipt", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const tableId = parseInt(req.params.tableId);
+  if (isNaN(tableId)) {
+    res.status(400).json({ error: "Invalid table ID" });
+    return;
+  }
+
+  const receipt = req.body;
+  broadcast(req.tenantId!, { type: "receipt:print", receipt });
+  res.json({ success: true });
+});
+
+router.post("/tables/:tableId/reopen", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const tableId = parseInt(req.params.tableId);
+  if (isNaN(tableId)) {
+    res.status(400).json({ error: "Invalid table ID" });
+    return;
+  }
+
+  const { orderIds } = req.body as { orderIds?: number[] };
+
+  let orders;
+  if (orderIds && orderIds.length > 0) {
+    orders = await db
+      .select()
+      .from(ordersTable)
+      .where(
+        and(
+          eq(ordersTable.tenantId, req.tenantId!),
+          eq(ordersTable.tableId, tableId),
+          eq(ordersTable.status, "finalizado")
+        )
+      );
+    orders = orders.filter(o => orderIds.includes(o.id));
+  } else {
+    const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    orders = await db
+      .select()
+      .from(ordersTable)
+      .where(
+        and(
+          eq(ordersTable.tenantId, req.tenantId!),
+          eq(ordersTable.tableId, tableId),
+          eq(ordersTable.status, "finalizado"),
+          gte(ordersTable.updatedAt, cutoff)
+        )
+      );
+  }
+
+  if (orders.length === 0) {
+    res.status(404).json({ error: "No finalized orders found" });
+    return;
+  }
+
+  await Promise.all(
+    orders.map(o =>
+      db.update(ordersTable).set({ status: "pronto" }).where(eq(ordersTable.id, o.id))
+    )
+  );
+
+  broadcast(req.tenantId!, { type: "table:reopened", tableId, count: orders.length });
+  res.json({ success: true, count: orders.length });
 });
 
 export default router;
