@@ -46,7 +46,11 @@ export default function AdminOrders() {
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      toast.success(`${data.deleted} pedido(s) removido(s) com sucesso.`);
+      toast.success(
+        data.deleted > 0
+          ? `${data.deleted} pedido(s) finalizado(s) removido(s).`
+          : "Nenhum pedido finalizado para remover."
+      );
       setShowClearConfirm(false);
     } catch {
       toast.error("Erro ao limpar pedidos.");
@@ -302,14 +306,14 @@ export default function AdminOrders() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-5 h-5" />
-              Limpar Todos os Pedidos
+              Limpar Pedidos Finalizados
             </DialogTitle>
             <DialogDescription className="pt-2 space-y-2">
               <span className="block">
-                Essa ação irá <strong>excluir permanentemente</strong> todos os pedidos do sistema, independente do status.
+                Essa ação irá <strong>excluir permanentemente</strong> todos os pedidos com status <strong>Finalizado</strong> do sistema.
               </span>
-              <span className="block text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3">
-                ⚠️ Esta ação é <strong>irreversível</strong>. Use apenas para limpar dados de teste ou iniciar um novo ciclo operacional.
+              <span className="block text-sm bg-muted border border-border rounded-lg p-3 text-muted-foreground">
+                Pedidos em andamento (Novo, Preparando, Pronto) <strong>não serão afetados</strong>.
               </span>
             </DialogDescription>
           </DialogHeader>

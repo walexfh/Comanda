@@ -207,14 +207,14 @@ router.delete("/orders/all", requireAuth, async (req: AuthenticatedRequest, res)
   const orders = await db
     .select({ id: ordersTable.id })
     .from(ordersTable)
-    .where(eq(ordersTable.tenantId, req.tenantId!));
+    .where(and(eq(ordersTable.tenantId, req.tenantId!), eq(ordersTable.status, "finalizado")));
 
   const orderIds = orders.map(o => o.id);
 
   if (orderIds.length > 0) {
     await db.delete(paymentsTable).where(inArray(paymentsTable.orderId, orderIds));
     await db.delete(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds));
-    await db.delete(ordersTable).where(eq(ordersTable.tenantId, req.tenantId!));
+    await db.delete(ordersTable).where(inArray(ordersTable.id, orderIds));
   }
 
   broadcast(req.tenantId!, { type: "orders:cleared" });
