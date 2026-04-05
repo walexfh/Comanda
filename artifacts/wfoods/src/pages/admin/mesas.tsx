@@ -53,6 +53,8 @@ export default function AdminMesas() {
   const historySessions = useMemo(() => {
     if (!finalizedOrders || finalizedOrders.length === 0) return [];
 
+    const SESSION_GAP_MS = 2 * 60 * 60 * 1000;
+
     const byTable: Record<number, typeof finalizedOrders> = {};
     for (const order of finalizedOrders) {
       if (!order.tableId) continue;
@@ -60,15 +62,49 @@ export default function AdminMesas() {
       byTable[order.tableId].push(order);
     }
 
-    return Object.entries(byTable).map(([tableIdStr, orders]) => {
+    const sessions: { tableId: number; tableNumber: number; orders: typeof finalizedOrders; closedAt: string; total: number }[] = [];
+
+    for (const [tableIdStr, orders] of Object.entries(byTable)) {
       const tableId = parseInt(tableIdStr);
+      const tableNumber = tableMap[tableId]?.number ?? tableId;
+
       const sorted = [...orders].sort((a, b) =>
-        new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
+        new Date(a.updatedAt ?? a.createdAt).getTime() - new Date(b.updatedAt ?? b.createdAt).getTime()
       );
-      const latest = sorted[0];
-      const total = orders.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0);
-      return { tableId, tableNumber: tableMap[tableId]?.number ?? tableId, orders, latestAt: latest.updatedAt ?? latest.createdAt, total };
-    }).sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime());
+
+      let currentCluster: typeof finalizedOrders = [];
+      let clusterAnchor = new Date(sorted[0].updatedAt ?? sorted[0].createdAt).getTime();
+
+      for (const order of sorted) {
+        const t = new Date(order.updatedAt ?? order.createdAt).getTime();
+        if (currentCluster.length > 0 && t - clusterAnchor > SESSION_GAP_MS) {
+          const latestInCluster = currentCluster[currentCluster.length - 1];
+          sessions.push({
+            tableId,
+            tableNumber,
+            orders: currentCluster,
+            closedAt: latestInCluster.updatedAt ?? latestInCluster.createdAt,
+            total: currentCluster.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0),
+          });
+          currentCluster = [];
+          clusterAnchor = t;
+        }
+        currentCluster.push(order);
+      }
+
+      if (currentCluster.length > 0) {
+        const latestInCluster = currentCluster[currentCluster.length - 1];
+        sessions.push({
+          tableId,
+          tableNumber,
+          orders: currentCluster,
+          closedAt: latestInCluster.updatedAt ?? latestInCluster.createdAt,
+          total: currentCluster.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0),
+        });
+      }
+    }
+
+    return sessions.sort((a, b) => new Date(b.closedAt).getTime() - new Date(a.closedAt).getTime());
   }, [finalizedOrders, tableMap]);
 
   const handleCreate = () => {
@@ -271,7 +307,7 @@ export default function AdminMesas() {
                           </Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {format(new Date(session.latestAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} •{" "}
+                          {format(new Date(session.closedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} •{" "}
                           {session.orders.length} pedido{session.orders.length !== 1 ? "s" : ""} •{" "}
                           Total: <span className="font-medium text-foreground">{formatCurrency(session.total)}</span>
                         </div>

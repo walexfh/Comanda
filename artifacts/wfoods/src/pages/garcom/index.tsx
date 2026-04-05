@@ -51,6 +51,8 @@ export default function GarcomMesas() {
   const historySessions = useMemo(() => {
     if (!finalizedOrders || finalizedOrders.length === 0) return [];
 
+    const SESSION_GAP_MS = 2 * 60 * 60 * 1000;
+
     const byTable: Record<number, Order[]> = {};
     for (const order of finalizedOrders) {
       if (!order.tableId) continue;
@@ -58,25 +60,60 @@ export default function GarcomMesas() {
       byTable[order.tableId].push(order);
     }
 
-    return Object.entries(byTable)
-      .map(([tableIdStr, orders]) => {
-        const tableId = parseInt(tableIdStr);
-        const sorted = [...orders].sort((a, b) =>
-          new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
-        );
-        const latest = sorted[0];
-        const total = orders.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0);
-        return {
+    const sessions: {
+      tableId: number;
+      tableNumber: number | string;
+      orders: Order[];
+      closedAt: string;
+      total: number;
+      orderIds: number[];
+    }[] = [];
+
+    for (const [tableIdStr, orders] of Object.entries(byTable)) {
+      const tableId = parseInt(tableIdStr);
+      const tableNumber = tableMap[tableId] ?? tableId;
+
+      const sorted = [...orders].sort((a, b) =>
+        new Date(a.updatedAt ?? a.createdAt).getTime() - new Date(b.updatedAt ?? b.createdAt).getTime()
+      );
+
+      let currentCluster: Order[] = [];
+      let clusterAnchor = new Date(sorted[0].updatedAt ?? sorted[0].createdAt).getTime();
+
+      for (const order of sorted) {
+        const t = new Date(order.updatedAt ?? order.createdAt).getTime();
+        if (currentCluster.length > 0 && t - clusterAnchor > SESSION_GAP_MS) {
+          const latestInCluster = currentCluster[currentCluster.length - 1];
+          sessions.push({
+            tableId,
+            tableNumber,
+            orders: currentCluster,
+            closedAt: latestInCluster.updatedAt ?? latestInCluster.createdAt,
+            total: currentCluster.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0),
+            orderIds: currentCluster.map(o => o.id),
+          });
+          currentCluster = [];
+          clusterAnchor = t;
+        }
+        currentCluster.push(order);
+      }
+
+      if (currentCluster.length > 0) {
+        const latestInCluster = currentCluster[currentCluster.length - 1];
+        sessions.push({
           tableId,
-          tableNumber: tableMap[tableId] ?? tableId,
-          orders,
-          latestAt: latest.updatedAt ?? latest.createdAt,
-          total,
-          orderIds: orders.map(o => o.id),
-        };
-      })
-      .sort((a, b) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime())
-      .slice(0, 20);
+          tableNumber,
+          orders: currentCluster,
+          closedAt: latestInCluster.updatedAt ?? latestInCluster.createdAt,
+          total: currentCluster.reduce((sum, o) => sum + parseFloat(String(o.total ?? 0)), 0),
+          orderIds: currentCluster.map(o => o.id),
+        });
+      }
+    }
+
+    return sessions
+      .sort((a, b) => new Date(b.closedAt).getTime() - new Date(a.closedAt).getTime())
+      .slice(0, 30);
   }, [finalizedOrders, tableMap]);
 
   const closeModal = () => {
@@ -388,7 +425,7 @@ export default function GarcomMesas() {
                         <Badge variant="secondary" className="text-xs bg-gray-500/10 text-gray-400">Fechada</Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(session.latestAt), "dd/MM HH:mm", { locale: ptBR })} • {session.orders.length} pedido{session.orders.length !== 1 ? "s" : ""} • {formatCurrency(session.total)}
+                        {format(new Date(session.closedAt), "dd/MM HH:mm", { locale: ptBR })} • {session.orders.length} pedido{session.orders.length !== 1 ? "s" : ""} • {formatCurrency(session.total)}
                       </div>
                     </div>
                     <Button
