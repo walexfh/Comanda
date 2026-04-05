@@ -5,7 +5,9 @@ export interface RegistrationRequestData {
   name: string;
   email: string;
   restaurantName: string;
-  phone?: string | null;
+  phone: string;
+  cnpj: string;
+  address: string;
   message?: string | null;
 }
 
@@ -26,23 +28,54 @@ export async function sendEmailNotification(data: RegistrationRequestData): Prom
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "WFoods <no-reply@wfoods.app>",
+        from: "WFoods ComandaFácil <onboarding@resend.dev>",
         to: [masterEmail],
-        subject: `Nova solicitação de acesso — ${data.restaurantName}`,
+        subject: `Nova solicitação de acesso — ${data.restaurantName} (#${data.id})`,
         html: `
-          <h2>Nova Solicitação de Acesso ao WFoods</h2>
-          <table style="border-collapse:collapse;width:100%">
-            <tr><td style="padding:8px;font-weight:bold">Nome</td><td style="padding:8px">${data.name}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold">E-mail</td><td style="padding:8px">${data.email}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold">Restaurante</td><td style="padding:8px">${data.restaurantName}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold">Telefone</td><td style="padding:8px">${data.phone ?? "—"}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold">Mensagem</td><td style="padding:8px">${data.message ?? "—"}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold">ID da solicitação</td><td style="padding:8px">#${data.id}</td></tr>
-          </table>
-          <p style="margin-top:24px">Acesse o Painel Master para aprovar ou rejeitar.</p>
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+            <h2 style="color:#f97316;margin-bottom:4px">Nova Solicitação de Acesso</h2>
+            <p style="color:#6b7280;margin-top:0">WFoods ComandaFácil — Solicitação #${data.id}</p>
+
+            <table style="border-collapse:collapse;width:100%;margin-top:16px;background:#f9fafb;border-radius:8px;overflow:hidden">
+              <tr style="background:#f3f4f6">
+                <td style="padding:10px 14px;font-weight:bold;color:#374151;width:140px">Nome</td>
+                <td style="padding:10px 14px;color:#111827">${data.name}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">E-mail</td>
+                <td style="padding:10px 14px;color:#111827">${data.email}</td>
+              </tr>
+              <tr style="background:#f3f4f6">
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">Restaurante</td>
+                <td style="padding:10px 14px;color:#111827">${data.restaurantName}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">Telefone</td>
+                <td style="padding:10px 14px;color:#111827">${data.phone}</td>
+              </tr>
+              <tr style="background:#f3f4f6">
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">CNPJ</td>
+                <td style="padding:10px 14px;color:#111827">${data.cnpj}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">Endereço</td>
+                <td style="padding:10px 14px;color:#111827">${data.address}</td>
+              </tr>
+              ${data.message ? `
+              <tr style="background:#f3f4f6">
+                <td style="padding:10px 14px;font-weight:bold;color:#374151">Mensagem</td>
+                <td style="padding:10px 14px;color:#111827;font-style:italic">${data.message}</td>
+              </tr>` : ""}
+            </table>
+
+            <p style="margin-top:24px;color:#6b7280;font-size:14px">
+              Acesse o Painel Master para aprovar ou rejeitar esta solicitação e criar o restaurante.
+            </p>
+          </div>
         `,
       }),
     });
+
     if (!res.ok) {
       const err = await res.text();
       logger.warn({ err }, "Failed to send email notification");
@@ -60,7 +93,7 @@ export async function sendWhatsAppNotification(data: RegistrationRequestData): P
   const masterPhone = process.env.MASTER_PHONE;
 
   if (!instanceId || !token || !masterPhone) {
-    logger.warn("WhatsApp notification skipped: ZAPI_INSTANCE_ID, ZAPI_TOKEN or MASTER_PHONE not configured");
+    logger.warn("WhatsApp notification skipped: ZAPI credentials not configured");
     return;
   }
 
@@ -69,9 +102,11 @@ export async function sendWhatsAppNotification(data: RegistrationRequestData): P
     `*Nome:* ${data.name}\n` +
     `*E-mail:* ${data.email}\n` +
     `*Restaurante:* ${data.restaurantName}\n` +
-    `*Telefone:* ${data.phone ?? "—"}\n` +
+    `*Telefone:* ${data.phone}\n` +
+    `*CNPJ:* ${data.cnpj}\n` +
+    `*Endereço:* ${data.address}\n` +
     (data.message ? `*Mensagem:* ${data.message}\n` : "") +
-    `\nAcesse o Painel Master para liberar o acesso.`;
+    `\nAcesse o Painel Master para aprovar e criar o restaurante.`;
 
   try {
     const res = await fetch(
