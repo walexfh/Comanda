@@ -95,7 +95,13 @@ export default function AdminCaixa() {
         body: JSON.stringify({ fechamento }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Fechamento enviado para a impressora Caixa!");
+      const data = await res.json();
+      const cleared = data.clearedOrders ?? 0;
+      toast.success(
+        cleared > 0
+          ? `Fechamento impresso! ${cleared} pedido(s) finalizado(s) removido(s).`
+          : "Fechamento enviado para a impressora Caixa!"
+      );
     } catch {
       toast.error("Erro ao enviar para impressora. Verifique se a estação Caixa está conectada.");
     } finally {

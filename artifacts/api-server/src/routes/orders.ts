@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, productsTable, tablesTable, waitersTable, tenantsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, productsTable, tablesTable, waitersTable, tenantsTable, paymentsTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { broadcast } from "../lib/ws";
 import {
@@ -212,6 +212,7 @@ router.delete("/orders/all", requireAuth, async (req: AuthenticatedRequest, res)
   const orderIds = orders.map(o => o.id);
 
   if (orderIds.length > 0) {
+    await db.delete(paymentsTable).where(inArray(paymentsTable.orderId, orderIds));
     await db.delete(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds));
     await db.delete(ordersTable).where(eq(ordersTable.tenantId, req.tenantId!));
   }
@@ -226,8 +227,26 @@ router.post("/caixa/fechamento/print", requireAuth, async (req: AuthenticatedReq
     res.status(400).json({ error: "fechamento data required" });
     return;
   }
+
+  // Delete all finalized orders and their associated payments/items
+  const finalizedOrders = await db
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.tenantId, req.tenantId!), eq(ordersTable.status, "finalizado")));
+
+  const finalizedIds = finalizedOrders.map(o => o.id);
+
+  if (finalizedIds.length > 0) {
+    await db.delete(paymentsTable).where(inArray(paymentsTable.orderId, finalizedIds));
+    await db.delete(orderItemsTable).where(inArray(orderItemsTable.orderId, finalizedIds));
+    await db.delete(ordersTable).where(inArray(ordersTable.id, finalizedIds));
+  }
+
   broadcast(req.tenantId!, { type: "caixa:fechamento", fechamento });
-  res.json({ success: true });
+  if (finalizedIds.length > 0) {
+    broadcast(req.tenantId!, { type: "orders:cleared" });
+  }
+  res.json({ success: true, clearedOrders: finalizedIds.length });
 });
 
 router.delete("/orders/:orderId", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
