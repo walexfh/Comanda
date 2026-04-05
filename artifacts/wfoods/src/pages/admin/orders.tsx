@@ -3,14 +3,14 @@ import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Printer, Bell } from "lucide-react";
+import { Printer, Bell, Trash2, AlertTriangle } from "lucide-react";
 import { ListOrdersStatus } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const statusColors = {
@@ -26,12 +26,34 @@ export default function AdminOrders() {
   useWebSocket();
   const [filter, setFilter] = useState<ListOrdersStatus | "todos">("todos");
   const [kitchenOrder, setKitchenOrder] = useState<Order | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearLoading, setClearLoading] = useState(false);
 
   const { data: orders, isLoading } = useListOrders(
     filter !== "todos" ? { status: filter } : {}
   );
 
   const updateStatus = useUpdateOrderStatus();
+
+  const handleClearOrders = async () => {
+    setClearLoading(true);
+    try {
+      const token = localStorage.getItem("wfoods_token");
+      const base = import.meta.env.BASE_URL ?? "/";
+      const res = await fetch(`${base}api/orders/all`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      toast.success(`${data.deleted} pedido(s) removido(s) com sucesso.`);
+      setShowClearConfirm(false);
+    } catch {
+      toast.error("Erro ao limpar pedidos.");
+    } finally {
+      setClearLoading(false);
+    }
+  };
 
   const handleRing = async (id: number) => {
     try {
@@ -101,6 +123,15 @@ export default function AdminOrders() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Pedidos</h1>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="gap-2 opacity-80 hover:opacity-100"
+          onClick={() => setShowClearConfirm(true)}
+        >
+          <Trash2 className="w-4 h-4" />
+          Limpar Pedidos
+        </Button>
       </div>
 
       <Tabs defaultValue="todos" onValueChange={(v) => setFilter(v as any)}>
@@ -263,6 +294,33 @@ export default function AdminOrders() {
               </Button>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Clear orders confirm dialog */}
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Limpar Todos os Pedidos
+            </DialogTitle>
+            <DialogDescription className="pt-2 space-y-2">
+              <span className="block">
+                Essa ação irá <strong>excluir permanentemente</strong> todos os pedidos do sistema, independente do status.
+              </span>
+              <span className="block text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3">
+                ⚠️ Esta ação é <strong>irreversível</strong>. Use apenas para limpar dados de teste ou iniciar um novo ciclo operacional.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setShowClearConfirm(false)} disabled={clearLoading}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={handleClearOrders} disabled={clearLoading}>
+              {clearLoading ? "Limpando..." : "Confirmar Limpeza"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AdminLayout>

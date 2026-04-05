@@ -4,22 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { format, startOfDay, startOfWeek, startOfMonth, subMonths, subWeeks } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Printer,
-  Trash2,
   CreditCard,
   Banknote,
   Smartphone,
   TrendingUp,
   Calendar,
-  AlertTriangle,
 } from "lucide-react";
 
 const METHOD_LABELS: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
@@ -49,10 +45,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 export default function AdminCaixa() {
   const { data: payments, isLoading } = useListPayments();
-  const queryClient = useQueryClient();
   const [period, setPeriod] = useState<Period>("hoje");
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [clearLoading, setClearLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
 
   const filteredPayments = useMemo(() => {
@@ -71,27 +64,6 @@ export default function AdminCaixa() {
     }
     return { totals, grand };
   }, [filteredPayments]);
-
-  const handleClearOrders = async () => {
-    setClearLoading(true);
-    try {
-      const token = localStorage.getItem("wfoods_token");
-      const base = import.meta.env.BASE_URL ?? "/";
-      const res = await fetch(`${base}api/orders/all`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      toast.success(`${data.deleted} pedido(s) removido(s) com sucesso.`);
-      queryClient.invalidateQueries();
-      setShowClearConfirm(false);
-    } catch {
-      toast.error("Erro ao limpar pedidos.");
-    } finally {
-      setClearLoading(false);
-    }
-  };
 
   const handlePrintFechamento = async () => {
     if (filteredPayments.length === 0) {
@@ -135,15 +107,6 @@ export default function AdminCaixa() {
     <AdminLayout>
       <div className="flex justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Caixa</h1>
-        <Button
-          variant="destructive"
-          size="sm"
-          className="gap-2 opacity-80 hover:opacity-100"
-          onClick={() => setShowClearConfirm(true)}
-        >
-          <Trash2 className="w-4 h-4" />
-          Limpar Pedidos
-        </Button>
       </div>
 
       {/* Period selector */}
@@ -321,33 +284,6 @@ export default function AdminCaixa() {
         </TabsContent>
       </Tabs>
 
-      {/* Clear orders confirm dialog */}
-      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Limpar Todos os Pedidos
-            </DialogTitle>
-            <DialogDescription className="pt-2 space-y-2">
-              <span className="block">
-                Essa ação irá <strong>excluir permanentemente</strong> todos os pedidos do sistema, independente do status.
-              </span>
-              <span className="block text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3">
-                ⚠️ Esta ação é <strong>irreversível</strong>. Use apenas para limpar dados de teste ou iniciar um novo ciclo operacional.
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setShowClearConfirm(false)} disabled={clearLoading}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" className="flex-1" onClick={handleClearOrders} disabled={clearLoading}>
-              {clearLoading ? "Limpando..." : "Confirmar Limpeza"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </AdminLayout>
   );
 }
