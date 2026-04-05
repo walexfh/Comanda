@@ -20,6 +20,7 @@ import GarcomFechar from "@/pages/garcom/fechar";
 import PublicMenu from "@/pages/menu";
 import Cadastro from "@/pages/cadastro";
 
+
 const queryClient = new QueryClient();
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/garcom/pedido/:tableId" component={GarcomPedido} />
       <Route path="/garcom/fechar/:tableId" component={GarcomFechar} />
       <Route path="/menu/:tenantSlug" component={PublicMenu} />
+
       <Route component={NotFound} />
     </Switch>
   );

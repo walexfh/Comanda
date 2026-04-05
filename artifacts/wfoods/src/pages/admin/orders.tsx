@@ -3,12 +3,14 @@ import { AdminLayout } from "@/components/admin-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Printer } from "lucide-react";
 import { ListOrdersStatus } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const statusColors = {
@@ -18,14 +20,17 @@ const statusColors = {
   finalizado: "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20",
 };
 
+type Order = NonNullable<ReturnType<typeof useListOrders>["data"]>[number];
+
 export default function AdminOrders() {
   useWebSocket();
   const [filter, setFilter] = useState<ListOrdersStatus | "todos">("todos");
-  
+  const [kitchenOrder, setKitchenOrder] = useState<Order | null>(null);
+
   const { data: orders, isLoading } = useListOrders(
     filter !== "todos" ? { status: filter } : {}
   );
-  
+
   const updateStatus = useUpdateOrderStatus();
 
   const handleUpdateStatus = (id: number, currentStatus: string) => {
@@ -44,8 +49,39 @@ export default function AdminOrders() {
     );
   };
 
+  const handlePrintKitchen = () => {
+    const el = document.getElementById("kitchen-ticket-print");
+    if (!el) return;
+    const win = window.open("", "_blank", "width=400,height=600");
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>Comanda Cozinha</title>
+      <style>
+        body { font-family: monospace; font-size: 16px; margin: 16px; background:#fff; color:#000; }
+        h1 { font-size: 24px; text-align:center; margin-bottom:4px; }
+        .sub { text-align:center; font-size:13px; color:#555; margin-bottom:16px; }
+        .divider { border-top: 2px dashed #000; margin: 12px 0; }
+        .item { margin-bottom: 12px; }
+        .item-name { font-size: 18px; font-weight: bold; }
+        .item-qty { display:inline-block; background:#000; color:#fff; padding:2px 8px; border-radius:4px; font-size:16px; margin-right:8px; }
+        .item-obs { font-size:14px; background:#fffde7; border-left:3px solid #f9a825; padding:4px 8px; margin-top:4px; }
+      </style></head><body>${el.innerHTML}</body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
   return (
     <AdminLayout>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #kitchen-ticket-print, #kitchen-ticket-print * { visibility: visible !important; }
+          #kitchen-ticket-print { position: fixed; top: 0; left: 0; width: 80mm; }
+        }
+      `}</style>
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Pedidos</h1>
       </div>
@@ -99,23 +135,36 @@ export default function AdminOrders() {
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t font-bold mb-4">
+                <div className="flex justify-between items-center pt-2 border-t font-bold mb-3">
                   <span>Total</span>
                   <span>{formatCurrency(order.total)}</span>
                 </div>
-                
-                {order.status !== "finalizado" && (
-                  <Button 
-                    className="w-full mt-auto" 
-                    onClick={() => handleUpdateStatus(order.id, order.status)}
-                    disabled={updateStatus.isPending}
-                    variant={order.status === "novo" ? "default" : order.status === "preparando" ? "secondary" : "outline"}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
+                    onClick={() => setKitchenOrder(order)}
+                    title="Imprimir comanda da cozinha"
                   >
-                    {order.status === "novo" ? "Começar a Preparar" : 
-                     order.status === "preparando" ? "Marcar como Pronto" : 
-                     "Finalizar Pedido"}
+                    <Printer className="w-3.5 h-3.5" />
+                    Cozinha
                   </Button>
-                )}
+
+                  {order.status !== "finalizado" && (
+                    <Button
+                      className="flex-1 mt-auto"
+                      onClick={() => handleUpdateStatus(order.id, order.status)}
+                      disabled={updateStatus.isPending}
+                      variant={order.status === "novo" ? "default" : order.status === "preparando" ? "secondary" : "outline"}
+                    >
+                      {order.status === "novo" ? "Preparar" :
+                        order.status === "preparando" ? "Pronto" :
+                          "Finalizar"}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -126,6 +175,67 @@ export default function AdminOrders() {
           )}
         </div>
       )}
+
+      {/* Kitchen Ticket Modal */}
+      <Dialog open={!!kitchenOrder} onOpenChange={(open) => !open && setKitchenOrder(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-4 h-4 text-orange-500" />
+              Comanda — Cozinha
+            </DialogTitle>
+          </DialogHeader>
+
+          {kitchenOrder && (
+            <>
+              {/* Preview on screen */}
+              <div
+                id="kitchen-ticket-print"
+                className="bg-white text-black rounded-lg border border-border p-4 font-mono text-sm"
+              >
+                <div className="text-center">
+                  <div className="text-2xl font-bold">
+                    {kitchenOrder.tableNumber ? `MESA ${kitchenOrder.tableNumber}` : "BALCÃO"}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Pedido #{kitchenOrder.id} • {format(new Date(kitchenOrder.createdAt), "HH:mm")}
+                    {kitchenOrder.waiterName && ` • ${kitchenOrder.waiterName}`}
+                  </div>
+                </div>
+
+                <div className="border-t-2 border-dashed border-gray-400 my-3" />
+
+                <div className="space-y-3">
+                  {kitchenOrder.items.map((item) => (
+                    <div key={item.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-black text-white text-sm font-bold px-2 py-0.5 rounded">
+                          {item.quantity}x
+                        </span>
+                        <span className="font-bold text-base">{item.productName}</span>
+                      </div>
+                      {item.notes && (
+                        <div className="ml-9 mt-1 bg-yellow-50 border-l-4 border-yellow-400 pl-2 py-1 text-sm text-gray-800">
+                          ⚠️ {item.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t-2 border-dashed border-gray-400 mt-3 pt-2 text-center text-xs text-gray-400">
+                  {format(new Date(kitchenOrder.createdAt), "dd/MM/yyyy HH:mm")}
+                </div>
+              </div>
+
+              <Button className="w-full" onClick={handlePrintKitchen}>
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir Comanda
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
