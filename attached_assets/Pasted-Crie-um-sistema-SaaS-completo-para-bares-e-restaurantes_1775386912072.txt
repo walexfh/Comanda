@@ -1,0 +1,158 @@
+Crie um sistema SaaS completo para bares e restaurantes chamado "WFoods ComandaFácil".
+
+## 🎯 OBJETIVO
+Gerar um MVP funcional com:
+- Pedido via QR Code
+- App de garçom ultra rápido
+- Painel administrativo
+- Impressão automática por setor
+
+---
+
+## ⚙️ REGRAS GERAIS
+
+- Arquitetura multi-tenant (cada restaurante isolado via tenant_id)
+- Banco compartilhado com separação por tenant_id
+- Sistema em tempo real (WebSocket ou Firebase realtime)
+- Foco em performance e uso em internet fraca
+
+---
+
+## 🧱 TECNOLOGIA
+
+- Frontend: Next.js (React)
+- Backend: Firebase ou Supabase
+- Banco: PostgreSQL
+- Deploy: Vercel
+- Serviço local: Node.js (impressão)
+
+---
+
+## 🔐 AUTENTICAÇÃO
+
+Tipos de usuário:
+- Admin (dono do restaurante)
+- Garçom (login separado por restaurante)
+
+Requisitos:
+- Login por email/senha (admin)
+- Login simples (garçom: nome + senha)
+- Cada usuário vinculado a um tenant_id
+
+---
+
+## 🗄️ MODELAGEM DO BANCO (OBRIGATÓRIO)
+
+Crie as tabelas com relacionamentos:
+
+- tenants (restaurantes)
+- users
+- waiters
+- categories
+- products
+- tables (mesas)
+- orders
+- order_items
+- payments
+- print_sectors (cozinha, bar, etc)
+
+---
+
+## 📋 CARDÁPIO DIGITAL
+
+- CRUD de produtos e categorias
+- Link público por restaurante:
+  /menu/[tenant_slug]
+- QR Code por mesa
+
+---
+
+## 🛒 PEDIDOS (CLIENTE)
+
+Fluxo:
+1. Cliente acessa via QR Code
+2. Adiciona itens
+3. Finaliza pedido com:
+   - nome
+   - mesa ou endereço
+
+Status:
+- novo
+- preparando
+- pronto
+- finalizado
+
+---
+
+## 🍽️ APP DO GARÇOM (PRIORIDADE MÁXIMA)
+
+Criar PWA leve com:
+
+- SEM imagens
+- carregamento instantâneo
+- busca rápida
+- interface estilo terminal moderno
+
+Fluxo:
+- selecionar mesa
+- adicionar itens
+- enviar pedido
+
+---
+
+## 🧑‍🍳 PAINEL ADMIN
+
+- visualizar pedidos em tempo real
+- alterar status
+- dashboard simples
+
+---
+
+## 🧾 IMPRESSÃO AUTOMÁTICA (CRÍTICO)
+
+Criar serviço local em Node.js que:
+
+- conecta via WebSocket
+- escuta novos pedidos
+- separa por setor (cozinha/bar)
+- imprime automaticamente
+
+Detalhar:
+- fluxo de comunicação
+- estrutura da mensagem
+- fallback em caso de erro
+
+---
+
+## 💰 CAIXA
+
+- abertura/fechamento
+- registro de pagamentos:
+  - dinheiro
+  - pix
+  - cartão
+
+---
+
+## 📊 RELATÓRIOS
+
+- vendas do dia
+- produtos mais vendidos
+
+---
+
+## 📦 SAÍDA ESPERADA (MUITO IMPORTANTE)
+
+Responda em etapas:
+
+1. Arquitetura geral
+2. Modelagem do banco (SQL)
+3. Estrutura de pastas (frontend/backend)
+4. Fluxo de dados (pedido → impressão)
+5. Código inicial:
+   - API de pedidos
+   - WebSocket
+   - App do garçom (base)
+6. Sugestões de melhorias futuras
+
+Seja técnico e direto.
