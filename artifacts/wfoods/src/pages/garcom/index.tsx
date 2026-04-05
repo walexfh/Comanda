@@ -85,7 +85,7 @@ export default function GarcomMesas() {
 
   return (
     <GarcomLayout>
-      <div className="p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+      <div className="p-3 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))" }}>
         {tables?.map((table) => {
           const occupied = activeOrders(table.id).length > 0;
           return (

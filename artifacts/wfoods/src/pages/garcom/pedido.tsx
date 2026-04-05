@@ -102,8 +102,8 @@ export default function GarcomPedido() {
   };
 
   return (
-    <GarcomLayout>
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <GarcomLayout title={`Mesa ${tableNumber}`}>
+      <div className="flex flex-col h-full">
         <div className="flex-none p-2 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-xl text-primary">Mesa {tableNumber}</h2>
