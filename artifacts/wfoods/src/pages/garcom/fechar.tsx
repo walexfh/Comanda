@@ -1,19 +1,30 @@
 import { GarcomLayout } from "@/components/garcom-layout";
-import { useListOrders, useListTables } from "@workspace/api-client-react";
+import { useListOrders, useListTables, useUpdateOrderStatus } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Printer, Receipt } from "lucide-react";
-import { useMemo } from "react";
+import { Printer, Receipt, CreditCard, Banknote, Smartphone, CheckCircle2, Clock } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 const SERVICE_FEE_RATE = 0.10;
+
+const PAYMENT_METHODS = [
+  { id: "cartao", label: "Cartão", icon: CreditCard, color: "text-blue-500 border-blue-500/30 hover:bg-blue-500/10" },
+  { id: "dinheiro", label: "Dinheiro", icon: Banknote, color: "text-green-500 border-green-500/30 hover:bg-green-500/10" },
+  { id: "pix", label: "Pix", icon: Smartphone, color: "text-violet-500 border-violet-500/30 hover:bg-violet-500/10" },
+];
 
 export default function GarcomFecharConta() {
   const { tableId } = useParams();
   const [, setLocation] = useLocation();
+  const [paying, setPaying] = useState(false);
+  const [done, setDone] = useState(false);
 
   const { data: allOrders, isLoading } = useListOrders({ tableId: parseInt(tableId!) });
   const { data: tables } = useListTables();
+  const updateStatus = useUpdateOrderStatus();
+
   const tableNumber = tables?.find(t => t.id === parseInt(tableId!))?.number ?? tableId;
 
   const activeOrders = useMemo(() => {
@@ -51,6 +62,40 @@ export default function GarcomFecharConta() {
 
   const handlePrint = () => window.print();
 
+  const handlePayment = async (method: string) => {
+    if (paying || done) return;
+    setPaying(true);
+    try {
+      const token = localStorage.getItem("wfoods_token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      await Promise.all(
+        activeOrders.map(order =>
+          updateStatus.mutateAsync({ orderId: order.id, data: { status: "finalizado" } })
+        )
+      );
+
+      await fetch("/api/payments", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          orderId: activeOrders[0]?.id,
+          amount: totalWithFee,
+          method,
+        }),
+      });
+
+      setDone(true);
+      toast.success("Pagamento finalizado! Mesa liberada.");
+      setTimeout(() => setLocation("/garcom"), 1800);
+    } catch {
+      toast.error("Erro ao finalizar pagamento. Tente novamente.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const title = `Fechar Conta — Mesa ${tableNumber}`;
 
   if (isLoading) {
@@ -75,9 +120,20 @@ export default function GarcomFecharConta() {
     );
   }
 
+  if (done) {
+    return (
+      <GarcomLayout title={title}>
+        <div className="p-8 text-center space-y-4">
+          <CheckCircle2 className="w-16 h-16 mx-auto text-green-500" />
+          <h2 className="text-xl font-bold">Pagamento Confirmado!</h2>
+          <p className="text-muted-foreground">Mesa {tableNumber} liberada.</p>
+        </div>
+      </GarcomLayout>
+    );
+  }
+
   return (
     <>
-      {/* Print styles — hide everything except #print-receipt */}
       <style>{`
         @media print {
           body * { visibility: hidden !important; }
@@ -97,11 +153,17 @@ export default function GarcomFecharConta() {
 
       <GarcomLayout title={title}>
         <div className="p-4 max-w-lg mx-auto w-full space-y-4">
-          {/* Receipt — visible on screen and printed */}
+
+          {/* Receipt */}
           <div id="print-receipt" className="bg-card rounded-xl border border-border p-4 font-mono text-sm">
             <div className="text-center border-b border-dashed border-border pb-3 mb-3">
               <div className="font-bold text-lg">COMANDA — MESA {tableNumber}</div>
               <div className="text-muted-foreground text-xs">{now}</div>
+              {/* Status badge — visible on screen and print */}
+              <div className="mt-2 inline-flex items-center gap-1.5 border border-amber-400 text-amber-600 rounded-full px-3 py-0.5 text-xs font-semibold">
+                <Clock className="w-3 h-3" />
+                AGUARDANDO PAGAMENTO
+              </div>
             </div>
 
             <table className="w-full">
@@ -143,10 +205,35 @@ export default function GarcomFecharConta() {
             </div>
           </div>
 
-          <Button size="lg" className="w-full gap-2" onClick={handlePrint}>
-            <Printer className="w-5 h-5" />
+          {/* Print button */}
+          <Button variant="outline" size="sm" className="w-full gap-2" onClick={handlePrint}>
+            <Printer className="w-4 h-4" />
             Imprimir Conta
           </Button>
+
+          {/* Payment method selection */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-center text-muted-foreground uppercase tracking-wide">
+              Forma de Pagamento
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {PAYMENT_METHODS.map(({ id, label, icon: Icon, color }) => (
+                <button
+                  key={id}
+                  disabled={paying}
+                  onClick={() => handlePayment(id)}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 py-5 font-semibold transition-all active:scale-95 disabled:opacity-50 ${color}`}
+                >
+                  <Icon className="w-7 h-7" />
+                  <span className="text-sm">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-center text-muted-foreground">
+            Selecione a forma de pagamento para finalizar e liberar a mesa
+          </p>
         </div>
       </GarcomLayout>
     </>
