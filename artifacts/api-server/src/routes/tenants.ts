@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, tenantsTable, usersTable } from "@workspace/db";
+import { db, tenantsTable, usersTable, allowedEmailsTable, registrationRequestsTable } from "@workspace/db";
 import { hashPassword } from "../lib/auth";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
+import { sendEmailNotification, sendWhatsAppNotification } from "../lib/notifications";
 import {
   CreateTenantBody,
   UpdateTenantBody,
@@ -17,6 +18,72 @@ router.get("/tenants", requireAuth, async (_req, res): Promise<void> => {
   res.json(tenants);
 });
 
+// Check if email is allowed to register
+router.get("/tenants/check-email", async (req, res): Promise<void> => {
+  const email = req.query.email as string;
+  if (!email) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+  const [allowed] = await db
+    .select()
+    .from(allowedEmailsTable)
+    .where(eq(allowedEmailsTable.email, email.toLowerCase().trim()));
+
+  res.json({ allowed: !!allowed });
+});
+
+// Submit a registration request
+router.post("/tenants/request-access", async (req, res): Promise<void> => {
+  const { name, email, restaurantName, phone, message } = req.body;
+
+  if (!name || !email || !restaurantName) {
+    res.status(400).json({ error: "name, email and restaurantName are required" });
+    return;
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Check if already in allowed list
+  const [alreadyAllowed] = await db
+    .select()
+    .from(allowedEmailsTable)
+    .where(eq(allowedEmailsTable.email, normalizedEmail));
+
+  if (alreadyAllowed) {
+    res.json({ alreadyAllowed: true });
+    return;
+  }
+
+  // Check for duplicate pending request
+  const [existing] = await db
+    .select()
+    .from(registrationRequestsTable)
+    .where(eq(registrationRequestsTable.email, normalizedEmail));
+
+  if (existing) {
+    res.json({ duplicate: true, requestId: existing.id });
+    return;
+  }
+
+  const [request] = await db
+    .insert(registrationRequestsTable)
+    .values({
+      name,
+      email: normalizedEmail,
+      restaurantName,
+      phone: phone || null,
+      message: message || null,
+    })
+    .returning();
+
+  // Send notifications (fire-and-forget)
+  sendEmailNotification(request).catch(() => {});
+  sendWhatsAppNotification(request).catch(() => {});
+
+  res.status(201).json({ success: true, requestId: request.id });
+});
+
 router.post("/tenants", async (req, res): Promise<void> => {
   const parsed = CreateTenantBody.safeParse(req.body);
   if (!parsed.success) {
@@ -25,6 +92,17 @@ router.post("/tenants", async (req, res): Promise<void> => {
   }
 
   const { name, slug, phone, address, adminEmail, adminPassword } = parsed.data;
+
+  // Check if email is in the allowed list
+  const [allowed] = await db
+    .select()
+    .from(allowedEmailsTable)
+    .where(eq(allowedEmailsTable.email, adminEmail.toLowerCase().trim()));
+
+  if (!allowed) {
+    res.status(403).json({ error: "Email not authorized. Please request access first." });
+    return;
+  }
 
   const existing = await db.select().from(tenantsTable).where(eq(tenantsTable.slug, slug));
   if (existing.length > 0) {

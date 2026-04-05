@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { useMasterAuth } from "@/lib/master-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Building2, ChevronRight } from "lucide-react";
+import { LogOut, LayoutDashboard, Building2, ShieldCheck } from "lucide-react";
 import { useLocation, Link } from "wouter";
 
 interface MasterLayoutProps {
@@ -24,6 +24,7 @@ export function MasterLayout({ children, title }: MasterLayoutProps) {
   const nav = [
     { href: "/master", label: "Dashboard", icon: LayoutDashboard },
     { href: "/master/restaurantes", label: "Restaurantes", icon: Building2 },
+    { href: "/master/acessos", label: "Acessos", icon: ShieldCheck },
   ];
 
   return (

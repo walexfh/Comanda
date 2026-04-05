@@ -26,6 +26,7 @@ import MasterLogin from "@/pages/master/login";
 import MasterDashboard from "@/pages/master/index";
 import MasterRestaurantes from "@/pages/master/restaurantes";
 import MasterRestaurante from "@/pages/master/restaurante";
+import MasterAcessos from "@/pages/master/acessos";
 
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ function Router() {
       <Route path="/master" component={MasterDashboard} />
       <Route path="/master/restaurantes" component={MasterRestaurantes} />
       <Route path="/master/restaurantes/:id" component={MasterRestaurante} />
+      <Route path="/master/acessos" component={MasterAcessos} />
 
       <Route component={NotFound} />
     </Switch>

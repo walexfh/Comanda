@@ -8,3 +8,5 @@ export * from "./orders";
 export * from "./order_items";
 export * from "./payments";
 export * from "./master_users";
+export * from "./allowed_emails";
+export * from "./registration_requests";

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and } from "drizzle-orm";
-import { db, tenantsTable, masterUsersTable, ordersTable, usersTable } from "@workspace/db";
+import { eq, sql, and, desc } from "drizzle-orm";
+import { db, tenantsTable, masterUsersTable, ordersTable, usersTable, allowedEmailsTable, registrationRequestsTable } from "@workspace/db";
 import { requireMaster, type MasterRequest } from "../middlewares/master";
 import { hashPassword, verifyPassword, generateToken } from "../lib/auth";
 
@@ -253,6 +253,90 @@ router.patch("/master/tenants/:id/fee", requireMaster, async (req, res): Promise
     .returning();
 
   if (!tenant) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ success: true });
+});
+
+// ── Allowed Emails ──────────────────────────────────────────────────────────
+
+router.get("/master/allowed-emails", requireMaster, async (_req, res): Promise<void> => {
+  const emails = await db
+    .select()
+    .from(allowedEmailsTable)
+    .orderBy(desc(allowedEmailsTable.createdAt));
+  res.json(emails);
+});
+
+router.post("/master/allowed-emails", requireMaster, async (req, res): Promise<void> => {
+  const { email, note } = req.body;
+  if (!email) { res.status(400).json({ error: "Email required" }); return; }
+
+  const [existing] = await db
+    .select()
+    .from(allowedEmailsTable)
+    .where(eq(allowedEmailsTable.email, email.toLowerCase().trim()));
+  if (existing) { res.status(400).json({ error: "Email already allowed" }); return; }
+
+  const [row] = await db
+    .insert(allowedEmailsTable)
+    .values({ email: email.toLowerCase().trim(), note: note || null })
+    .returning();
+  res.status(201).json(row);
+});
+
+router.delete("/master/allowed-emails/:id", requireMaster, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await db.delete(allowedEmailsTable).where(eq(allowedEmailsTable.id, id));
+  res.json({ success: true });
+});
+
+// ── Registration Requests ────────────────────────────────────────────────────
+
+router.get("/master/registration-requests", requireMaster, async (_req, res): Promise<void> => {
+  const requests = await db
+    .select()
+    .from(registrationRequestsTable)
+    .orderBy(desc(registrationRequestsTable.createdAt));
+  res.json(requests);
+});
+
+router.patch("/master/registration-requests/:id/approve", requireMaster, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [request] = await db
+    .select()
+    .from(registrationRequestsTable)
+    .where(eq(registrationRequestsTable.id, id));
+  if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
+  // Add email to allowed list
+  const [already] = await db
+    .select()
+    .from(allowedEmailsTable)
+    .where(eq(allowedEmailsTable.email, request.email));
+
+  if (!already) {
+    await db.insert(allowedEmailsTable).values({ email: request.email, note: `Aprovado via solicitação #${id}` });
+  }
+
+  await db
+    .update(registrationRequestsTable)
+    .set({ status: "approved" })
+    .where(eq(registrationRequestsTable.id, id));
+
+  res.json({ success: true });
+});
+
+router.patch("/master/registration-requests/:id/reject", requireMaster, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db
+    .update(registrationRequestsTable)
+    .set({ status: "rejected" })
+    .where(eq(registrationRequestsTable.id, id));
+
   res.json({ success: true });
 });
 
