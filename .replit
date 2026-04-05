@@ -27,3 +27,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+MASTER_EMAIL = "walexferreiraegy@gmail.com"
+MASTER_PHONE = "5527997382728"
