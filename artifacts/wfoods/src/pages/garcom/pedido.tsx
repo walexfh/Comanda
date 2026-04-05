@@ -1,5 +1,5 @@
 import { GarcomLayout } from "@/components/garcom-layout";
-import { useGetTenant, useListProducts, useCreateOrder, useListCategories } from "@workspace/api-client-react";
+import { useGetTenant, useListProducts, useCreateOrder, useListCategories, useListTables } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
@@ -24,7 +24,10 @@ export default function GarcomPedido() {
   
   const { data: categories } = useListCategories();
   const { data: products } = useListProducts({ available: true });
+  const { data: tables } = useListTables();
   const createOrder = useCreateOrder();
+
+  const tableNumber = tables?.find(t => t.id === parseInt(tableId!))?.number ?? tableId;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
@@ -103,7 +106,7 @@ export default function GarcomPedido() {
       <div className="flex flex-col h-[calc(100vh-4rem)]">
         <div className="flex-none p-2 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-xl text-primary">Mesa {tableId}</h2>
+            <h2 className="font-bold text-xl text-primary">Mesa {tableNumber}</h2>
             <Input 
               placeholder="Nome do cliente (opcional)" 
               className="max-w-[200px] h-8 text-sm"

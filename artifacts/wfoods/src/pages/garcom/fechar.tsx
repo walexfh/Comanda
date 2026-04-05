@@ -1,5 +1,5 @@
 import { GarcomLayout } from "@/components/garcom-layout";
-import { useListOrders } from "@workspace/api-client-react";
+import { useListOrders, useListTables } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,12 @@ export default function GarcomFecharConta() {
   const [, setLocation] = useLocation();
 
   const { data: allOrders, isLoading } = useListOrders({ tableId: parseInt(tableId!) });
+  const { data: tables } = useListTables();
+  const tableNumber = tables?.find(t => t.id === parseInt(tableId!))?.number ?? tableId;
 
   const activeOrders = useMemo(() => {
     if (!allOrders) return [];
-    return allOrders.filter(o => o.status !== "finalizado");
+    return allOrders.filter(o => o.status !== "finalizado" && o.status !== "cancelado");
   }, [allOrders]);
 
   const allItems = useMemo(() => {
@@ -98,14 +100,14 @@ export default function GarcomFecharConta() {
             <Button variant="ghost" size="icon" onClick={() => setLocation("/garcom")}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-bold">Fechar Conta — Mesa {tableId}</h1>
+            <h1 className="text-xl font-bold">Fechar Conta — Mesa {tableNumber}</h1>
           </div>
         </div>
 
         {/* Receipt — visible on screen and printed */}
         <div id="print-receipt" className="max-w-md mx-auto bg-card rounded-xl border border-border p-4 mx-4 font-mono text-sm">
           <div className="text-center border-b border-dashed border-border pb-3 mb-3">
-            <div className="font-bold text-lg">COMANDA — MESA {tableId}</div>
+            <div className="font-bold text-lg">COMANDA — MESA {tableNumber}</div>
             <div className="text-muted-foreground text-xs">{now}</div>
           </div>
 
@@ -119,17 +121,15 @@ export default function GarcomFecharConta() {
             </thead>
             <tbody>
               {allItems.map((item, i) => (
-                <>
-                  <tr key={i} className="border-b border-border/30">
-                    <td className="py-1.5 pr-2 leading-tight">
-                      <div className="font-medium">{item.name}</div>
-                    </td>
-                    <td className="py-1.5 text-center text-muted-foreground">{item.quantity}x</td>
-                    <td className="py-1.5 text-right whitespace-nowrap">
-                      {formatCurrency(item.unitPrice * item.quantity)}
-                    </td>
-                  </tr>
-                </>
+                <tr key={i} className="border-b border-border/30">
+                  <td className="py-1.5 pr-2 leading-tight">
+                    <div className="font-medium">{item.name}</div>
+                  </td>
+                  <td className="py-1.5 text-center text-muted-foreground">{item.quantity}x</td>
+                  <td className="py-1.5 text-right whitespace-nowrap">
+                    {formatCurrency(item.unitPrice * item.quantity)}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>

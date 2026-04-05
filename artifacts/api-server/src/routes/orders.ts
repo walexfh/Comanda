@@ -185,4 +185,27 @@ router.patch("/orders/:orderId/status", requireAuth, async (req: AuthenticatedRe
   res.json(fullOrder);
 });
 
+router.delete("/orders/:orderId", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const orderId = parseInt(req.params.orderId);
+  if (isNaN(orderId)) {
+    res.status(400).json({ error: "Invalid order ID" });
+    return;
+  }
+
+  const [order] = await db
+    .update(ordersTable)
+    .set({ status: "cancelado", updatedAt: new Date() })
+    .where(and(eq(ordersTable.id, orderId), eq(ordersTable.tenantId, req.tenantId!)))
+    .returning();
+
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  const fullOrder = await getOrderWithItems(order.id);
+  broadcast(req.tenantId!, { type: "order:updated", order: fullOrder });
+  res.json(fullOrder);
+});
+
 export default router;
