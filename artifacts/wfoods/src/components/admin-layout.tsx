@@ -10,7 +10,8 @@ import {
   Users, 
   Wallet, 
   BarChart3, 
-  LogOut 
+  LogOut,
+  Printer
 } from "lucide-react";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -25,6 +26,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { href: "/admin/garcons", icon: Users, label: "Garçons" },
     { href: "/admin/caixa", icon: Wallet, label: "Caixa" },
     { href: "/admin/relatorios", icon: BarChart3, label: "Relatórios" },
+    { href: "/admin/impressoras", icon: Printer, label: "Impressoras" },
   ];
 
   useEffect(() => {

@@ -229,10 +229,11 @@ export default function AdminCardapio() {
                       <Printer className="w-3.5 h-3.5" />
                       Impressora de destino
                     </Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { value: "cozinha", label: "🍳 Cozinha", color: "border-orange-500 bg-orange-500/10 text-orange-400" },
                         { value: "bar", label: "🍺 Bar", color: "border-blue-500 bg-blue-500/10 text-blue-400" },
+                        { value: "caixa", label: "🧾 Caixa", color: "border-green-500 bg-green-500/10 text-green-400" },
                         { value: "", label: "Nenhuma", color: "border-muted-foreground/30 text-muted-foreground" },
                       ].map(opt => (
                         <button

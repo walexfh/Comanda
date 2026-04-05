@@ -15,6 +15,8 @@ import AdminMesas from "@/pages/admin/mesas";
 import AdminGarcons from "@/pages/admin/garcons";
 import AdminCaixa from "@/pages/admin/caixa";
 import AdminRelatorios from "@/pages/admin/relatorios";
+import AdminImpressoras from "@/pages/admin/impressoras";
+import PrintStation from "@/pages/print-station";
 import GarcomMesas from "@/pages/garcom/index";
 import GarcomPedido from "@/pages/garcom/pedido";
 import GarcomFechar from "@/pages/garcom/fechar";
@@ -42,6 +44,8 @@ function Router() {
       <Route path="/admin/garcons" component={AdminGarcons} />
       <Route path="/admin/caixa" component={AdminCaixa} />
       <Route path="/admin/relatorios" component={AdminRelatorios} />
+      <Route path="/admin/impressoras" component={AdminImpressoras} />
+      <Route path="/print-station" component={PrintStation} />
       <Route path="/garcom" component={GarcomMesas} />
       <Route path="/garcom/pedido/:tableId" component={GarcomPedido} />
       <Route path="/garcom/fechar/:tableId" component={GarcomFechar} />

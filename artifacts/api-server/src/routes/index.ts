@@ -10,10 +10,12 @@ import paymentsRouter from "./payments";
 import dashboardRouter from "./dashboard";
 import waitersRouter from "./waiters";
 import masterRouter from "./master";
+import publicRouter from "./public";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(publicRouter);
 router.use(masterRouter);
 router.use(authRouter);
 router.use(tenantsRouter);
