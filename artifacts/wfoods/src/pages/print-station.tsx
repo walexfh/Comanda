@@ -42,9 +42,20 @@ interface ReceiptData {
   timestamp: string;
 }
 
+interface FechamentoData {
+  period: string;
+  periodStart: string | null;
+  generatedAt: string;
+  totals: Record<string, number>;
+  grand: number;
+  count: number;
+  payments: { id: number; amount: number; method: string; orderId: number; createdAt: string }[];
+}
+
 type Job =
   | { kind: "order"; id: string; order: IncomingOrder; timestamp: Date }
-  | { kind: "receipt"; id: string; receipt: ReceiptData; timestamp: Date };
+  | { kind: "receipt"; id: string; receipt: ReceiptData; timestamp: Date }
+  | { kind: "fechamento"; id: string; fechamento: FechamentoData; timestamp: Date };
 
 function formatCurrency(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -159,6 +170,48 @@ function ReceiptTicket({ job, restaurantName }: { job: Job & { kind: "receipt" }
   );
 }
 
+const METHOD_PRINT_LABELS: Record<string, string> = {
+  cartao: "Cartão",
+  dinheiro: "Dinheiro",
+  pix: "Pix",
+};
+
+function FechamentoTicket({ job, restaurantName }: { job: Job & { kind: "fechamento" }; restaurantName: string }) {
+  const f = job.fechamento;
+  return (
+    <div className="ticket">
+      <div className="ticket-header">
+        <div className="ticket-sector" style={{ color: "#22c55e" }}>📊 FECHAMENTO DE CAIXA</div>
+        <div className="ticket-restaurant">{restaurantName}</div>
+      </div>
+      <div className="ticket-divider" />
+      <div className="ticket-table" style={{ fontSize: "14px" }}>Período: {f.period}</div>
+      <div className="ticket-meta">
+        Gerado em {format(new Date(f.generatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+      </div>
+      <div className="ticket-divider" />
+      <div className="ticket-total-section">
+        {Object.entries(f.totals).map(([method, val]) => (
+          <div key={method} className="ticket-total-row">
+            <span>{METHOD_PRINT_LABELS[method] ?? method}</span>
+            <span>{formatCurrency(val)}</span>
+          </div>
+        ))}
+        <div className="ticket-divider-thin" />
+        <div className="ticket-total-row ticket-total-bold">
+          <span>TOTAL GERAL</span>
+          <span>{formatCurrency(f.grand)}</span>
+        </div>
+        <div className="ticket-payment">{f.count} transação(ões) no período</div>
+      </div>
+      <div className="ticket-divider" />
+      <div className="ticket-footer">
+        Operador: Admin • {format(new Date(f.generatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+      </div>
+    </div>
+  );
+}
+
 export default function PrintStation() {
   const params = new URLSearchParams(window.location.search);
   const sector = params.get("sector") ?? "";
@@ -212,6 +265,15 @@ export default function PrintStation() {
     autoPrint(id);
   };
 
+  const handleFechamento = (fechamento: FechamentoData) => {
+    if (sector !== "caixa") return;
+    const id = `fechamento-${Date.now()}`;
+    const job: Job = { kind: "fechamento", id, fechamento, timestamp: new Date() };
+    playAlert();
+    setJobs(prev => [job, ...prev.slice(0, 49)]);
+    autoPrint(id);
+  };
+
   useEffect(() => {
     if (!slug || !sector) { setStatus("error"); return; }
 
@@ -243,6 +305,7 @@ export default function PrintStation() {
         const msg = JSON.parse(e.data);
         if (msg.type === "order:new" && msg.order) handleOrderNew(msg.order);
         if (msg.type === "receipt:print" && msg.receipt) handleReceiptPrint(msg.receipt);
+        if (msg.type === "caixa:fechamento" && msg.fechamento) handleFechamento(msg.fechamento);
       } catch { }
     };
 
@@ -380,7 +443,7 @@ export default function PrintStation() {
                       </div>
                     ))}
                   </>
-                ) : (
+                ) : job.kind === "receipt" ? (
                   <>
                     <div className="job-table">
                       {job.receipt.tableNumber ? `Mesa ${job.receipt.tableNumber}` : "Balcão"} — Conta
@@ -407,6 +470,28 @@ export default function PrintStation() {
                       💳 {METHOD_LABELS[job.receipt.method] ?? job.receipt.method}
                     </div>
                   </>
+                ) : (
+                  <>
+                    <div className="job-table" style={{ color: "#22c55e" }}>📊 FECHAMENTO DE CAIXA</div>
+                    <div className="job-meta">
+                      Período: {job.fechamento.period} • {format(new Date(job.fechamento.generatedAt), "dd/MM/yyyy HH:mm")}
+                    </div>
+                    <div className="job-divider" />
+                    <div className="job-totals">
+                      {Object.entries(job.fechamento.totals).map(([method, val]) => (
+                        <div key={method} className="job-total-row">
+                          <span>{METHOD_LABELS[method] ?? method}</span>
+                          <span>{formatCurrency(val)}</span>
+                        </div>
+                      ))}
+                      <div className="job-divider" />
+                      <div className="job-total-row job-total-bold">
+                        <span>TOTAL GERAL</span>
+                        <span style={{ color: "#22c55e" }}>{formatCurrency(job.fechamento.grand)}</span>
+                      </div>
+                    </div>
+                    <div className="job-payment">{job.fechamento.count} transação(ões)</div>
+                  </>
                 )}
                 <div className="job-time">{format(job.timestamp, "HH:mm:ss")}</div>
               </div>
@@ -420,6 +505,9 @@ export default function PrintStation() {
       )}
       {latestJob?.kind === "receipt" && (
         <ReceiptTicket job={latestJob} restaurantName={restaurantName} />
+      )}
+      {latestJob?.kind === "fechamento" && (
+        <FechamentoTicket job={latestJob} restaurantName={restaurantName} />
       )}
     </>
   );

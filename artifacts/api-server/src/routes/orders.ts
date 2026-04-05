@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, productsTable, tablesTable, waitersTable, tenantsTable } from "@workspace/db";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { broadcast } from "../lib/ws";
@@ -200,6 +200,33 @@ router.post("/orders/:orderId/ring", requireAuth, async (req: AuthenticatedReque
   }
 
   broadcast(req.tenantId!, { type: "order:bell", order });
+  res.json({ success: true });
+});
+
+router.delete("/orders/all", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const orders = await db
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(eq(ordersTable.tenantId, req.tenantId!));
+
+  const orderIds = orders.map(o => o.id);
+
+  if (orderIds.length > 0) {
+    await db.delete(orderItemsTable).where(inArray(orderItemsTable.orderId, orderIds));
+    await db.delete(ordersTable).where(eq(ordersTable.tenantId, req.tenantId!));
+  }
+
+  broadcast(req.tenantId!, { type: "orders:cleared" });
+  res.json({ success: true, deleted: orderIds.length });
+});
+
+router.post("/caixa/fechamento/print", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const { fechamento } = req.body;
+  if (!fechamento) {
+    res.status(400).json({ error: "fechamento data required" });
+    return;
+  }
+  broadcast(req.tenantId!, { type: "caixa:fechamento", fechamento });
   res.json({ success: true });
 });
 
