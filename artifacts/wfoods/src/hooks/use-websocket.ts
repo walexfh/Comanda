@@ -1,10 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListOrdersQueryKey, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 
 export function useWebSocket() {
   const queryClient = useQueryClient();
   const ws = useRef<WebSocket | null>(null);
+  const { user } = useAuth();
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -12,6 +19,13 @@ export function useWebSocket() {
 
     const connect = () => {
       ws.current = new WebSocket(wsUrl);
+
+      ws.current.onopen = () => {
+        const currentUser = userRef.current;
+        if (currentUser?.tenantId) {
+          ws.current?.send(JSON.stringify({ type: "subscribe", tenantId: currentUser.tenantId }));
+        }
+      };
 
       ws.current.onmessage = (event) => {
         try {
@@ -26,7 +40,7 @@ export function useWebSocket() {
       };
 
       ws.current.onclose = () => {
-        setTimeout(connect, 3000); // Reconnect after 3 seconds
+        setTimeout(connect, 3000);
       };
     };
 

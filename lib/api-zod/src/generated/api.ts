@@ -413,6 +413,7 @@ export const ListOrdersResponse = zod.array(ListOrdersResponseItem);
 export const CreateOrderBody = zod.object({
   tenantSlug: zod.string(),
   tableId: zod.number().nullish(),
+  waiterId: zod.number().nullish(),
   customerName: zod.string().nullish(),
   items: zod.array(
     zod.object({

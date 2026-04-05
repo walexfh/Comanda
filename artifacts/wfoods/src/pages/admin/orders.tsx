@@ -10,7 +10,7 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Printer } from "lucide-react";
+import { Printer, Bell } from "lucide-react";
 import { ListOrdersStatus } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const statusColors = {
@@ -32,6 +32,23 @@ export default function AdminOrders() {
   );
 
   const updateStatus = useUpdateOrderStatus();
+
+  const handleRing = async (id: number) => {
+    try {
+      const token = localStorage.getItem("wfoods_token");
+      const res = await fetch(`${import.meta.env.BASE_URL}api/orders/${id}/ring`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Garçom notificado!");
+      } else {
+        toast.error("Erro ao notificar garçom");
+      }
+    } catch {
+      toast.error("Erro ao notificar garçom");
+    }
+  };
 
   const handleUpdateStatus = (id: number, currentStatus: string) => {
     let nextStatus: ListOrdersStatus = "preparando";
@@ -151,6 +168,18 @@ export default function AdminOrders() {
                     <Printer className="w-3.5 h-3.5" />
                     Cozinha
                   </Button>
+
+                  {order.status === "pronto" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-green-600 border-green-500/30 hover:bg-green-500/10"
+                      onClick={() => handleRing(order.id)}
+                      title="Chamar garçom via campainha"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
 
                   {order.status !== "finalizado" && (
                     <Button

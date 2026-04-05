@@ -8,33 +8,44 @@ function playBell() {
   try {
     const ctx = new AudioContext();
 
-    const bell = (freq: number, startTime: number, duration: number, gain: number) => {
+    const tone = (freq: number, startTime: number, duration: number, gain: number) => {
       const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
+      const g = ctx.createGain();
+      osc.connect(g);
+      g.connect(ctx.destination);
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-
-      gainNode.gain.setValueAtTime(0, ctx.currentTime + startTime);
-      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + startTime + 0.01);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
-
+      g.gain.setValueAtTime(0, ctx.currentTime + startTime);
+      g.gain.linearRampToValueAtTime(gain, ctx.currentTime + startTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
       osc.start(ctx.currentTime + startTime);
       osc.stop(ctx.currentTime + startTime + duration);
     };
 
-    bell(880, 0, 1.2, 0.5);
-    bell(1320, 0, 1.2, 0.3);
-    bell(880, 0.35, 0.8, 0.4);
-    bell(1320, 0.35, 0.8, 0.2);
+    tone(880, 0, 1.2, 0.5);
+    tone(1320, 0, 1.2, 0.3);
+    tone(880, 0.35, 0.8, 0.4);
+    tone(1320, 0.35, 0.8, 0.2);
 
     setTimeout(() => ctx.close(), 3000);
   } catch {
-    // AudioContext not available — silently ignore
+    // AudioContext may not be available in some contexts
   }
+}
+
+function showNotification(tableLabel: string, orderId: number, itemCount: number) {
+  toast.success(`🛎️ Pedido Pronto — ${tableLabel}`, {
+    description: `Pedido #${orderId} com ${itemCount} item${itemCount !== 1 ? "s" : ""} está pronto para servir!`,
+    duration: 10000,
+    position: "top-center",
+    style: {
+      background: "hsl(var(--primary))",
+      color: "hsl(var(--primary-foreground))",
+      border: "none",
+      fontSize: "16px",
+      fontWeight: "700",
+    },
+  });
 }
 
 export function useGarcomNotifications() {
@@ -54,6 +65,13 @@ export function useGarcomNotifications() {
     const connect = () => {
       ws.current = new WebSocket(wsUrl);
 
+      ws.current.onopen = () => {
+        const currentUser = userRef.current;
+        if (currentUser?.tenantId) {
+          ws.current?.send(JSON.stringify({ type: "subscribe", tenantId: currentUser.tenantId }));
+        }
+      };
+
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -66,31 +84,26 @@ export function useGarcomNotifications() {
           if (data.type === "order:updated" && data.order?.status === "pronto") {
             const order = data.order;
             const currentUser = userRef.current;
+            if (currentUser?.role !== "waiter") return;
 
-            const isMyOrder =
-              currentUser?.role === "waiter" &&
-              order.waiterId != null &&
-              order.waiterId === currentUser.id;
+            playBell();
 
-            if (isMyOrder) {
-              playBell();
+            const tableLabel = order.tableNumber ? `Mesa ${order.tableNumber}` : "Balcão";
+            const itemCount = (order.items ?? []).length;
+            showNotification(tableLabel, order.id, itemCount);
+          }
 
-              const tableLabel = order.tableNumber ? `Mesa ${order.tableNumber}` : `Mesa`;
-              const itemCount = (order.items ?? []).length;
+          if (data.type === "order:bell") {
+            const order = data.order;
+            const currentUser = userRef.current;
+            if (currentUser?.role !== "waiter") return;
 
-              toast.success(`🛎️ Pedido Pronto — ${tableLabel}`, {
-                description: `Pedido #${order.id} com ${itemCount} item${itemCount !== 1 ? "s" : ""} está pronto para servir!`,
-                duration: 8000,
-                position: "top-center",
-                style: {
-                  background: "hsl(var(--primary))",
-                  color: "hsl(var(--primary-foreground))",
-                  border: "none",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                },
-              });
-            }
+            playBell();
+
+            const tableLabel = order?.tableNumber ? `Mesa ${order.tableNumber}` : "Balcão";
+            const orderId = order?.id ?? "?";
+            const itemCount = (order?.items ?? []).length;
+            showNotification(tableLabel, orderId, itemCount);
           }
         } catch (e) {
           console.error("Failed to parse websocket message", e);

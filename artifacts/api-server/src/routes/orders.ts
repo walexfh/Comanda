@@ -69,7 +69,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const { tenantSlug, tableId, customerName, items } = parsed.data;
+  const { tenantSlug, tableId, waiterId, customerName, items } = parsed.data;
 
   const [tenant] = await db.select().from(tenantsTable).where(eq(tenantsTable.slug, tenantSlug));
   if (!tenant) {
@@ -121,6 +121,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     .values({
       tenantId: tenant.id,
       tableId: tableId ?? null,
+      waiterId: waiterId ?? null,
       customerName: customerName ?? null,
       status: "novo",
       total: String(total),
@@ -183,6 +184,23 @@ router.patch("/orders/:orderId/status", requireAuth, async (req: AuthenticatedRe
   broadcast(req.tenantId!, { type: "order:updated", order: fullOrder });
 
   res.json(fullOrder);
+});
+
+router.post("/orders/:orderId/ring", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
+  const orderId = parseInt(req.params.orderId);
+  if (isNaN(orderId)) {
+    res.status(400).json({ error: "Invalid order ID" });
+    return;
+  }
+
+  const order = await getOrderWithItems(orderId);
+  if (!order || order.tenantId !== req.tenantId) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  broadcast(req.tenantId!, { type: "order:bell", order });
+  res.json({ success: true });
 });
 
 router.delete("/orders/:orderId", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {

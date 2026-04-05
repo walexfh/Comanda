@@ -83,6 +83,7 @@ export default function GarcomPedido() {
         data: {
           tenantSlug: user.tenantSlug,
           tableId: parseInt(tableId!),
+          waiterId: user.id,
           customerName: customerName || undefined,
           items: cart.map(item => ({
             productId: item.productId,
