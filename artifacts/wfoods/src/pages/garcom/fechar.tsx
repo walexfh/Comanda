@@ -123,9 +123,6 @@ export default function GarcomFecharConta() {
                   <tr key={i} className="border-b border-border/30">
                     <td className="py-1.5 pr-2 leading-tight">
                       <div className="font-medium">{item.name}</div>
-                      {item.notes && (
-                        <div className="text-xs text-muted-foreground">📝 {item.notes}</div>
-                      )}
                     </td>
                     <td className="py-1.5 text-center text-muted-foreground">{item.quantity}x</td>
                     <td className="py-1.5 text-right whitespace-nowrap">
