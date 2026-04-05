@@ -17,6 +17,7 @@ import AdminRelatorios from "@/pages/admin/relatorios";
 import GarcomMesas from "@/pages/garcom/index";
 import GarcomPedido from "@/pages/garcom/pedido";
 import PublicMenu from "@/pages/menu";
+import Cadastro from "@/pages/cadastro";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/login/admin" component={AdminLogin} />
       <Route path="/login/garcom" component={WaiterLogin} />
+      <Route path="/cadastro" component={Cadastro} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/orders" component={AdminOrders} />
       <Route path="/admin/cardapio" component={AdminCardapio} />

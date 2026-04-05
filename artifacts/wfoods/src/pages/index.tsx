@@ -23,6 +23,13 @@ export default function Landing() {
               Acesso Garçom
             </Button>
           </Link>
+          <div className="border-t border-border/30 pt-4">
+            <Link href="/cadastro" className="w-full">
+              <Button size="lg" variant="ghost" className="w-full text-base h-12 text-muted-foreground hover:text-primary hover:bg-primary/10">
+                + Cadastrar Novo Restaurante
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
