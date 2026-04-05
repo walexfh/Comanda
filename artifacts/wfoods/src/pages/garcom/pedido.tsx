@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Minus, ShoppingCart, Trash2 } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, Trash2, MessageSquare, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 
@@ -30,6 +30,11 @@ export default function GarcomPedido() {
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [openNoteFor, setOpenNoteFor] = useState<number | null>(null);
+
+  const updateNote = (productId: number, note: string) => {
+    setCart(prev => prev.map(i => i.productId === productId ? { ...i, notes: note } : i));
+  };
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
@@ -157,27 +162,65 @@ export default function GarcomPedido() {
 
         {cart.length > 0 && (
           <div className="flex-none bg-card border-t border-border shadow-lg mt-auto">
-            <div className="max-h-48 overflow-y-auto p-2 space-y-2 bg-muted/20">
+            <div className="max-h-56 overflow-y-auto p-2 space-y-2 bg-muted/20">
               {cart.map(item => (
-                <div key={item.productId} className="flex items-center justify-between bg-background p-2 rounded border border-border">
-                  <div className="flex-1">
-                    <div className="font-bold text-sm truncate">{item.productName}</div>
-                    <div className="text-muted-foreground text-xs">{formatCurrency(item.price)}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 bg-muted rounded-full px-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => updateQuantity(item.productId, -1)}>
-                        <Minus className="h-3 w-3" />
+                <div key={item.productId} className="bg-background rounded border border-border overflow-hidden">
+                  <div className="flex items-center justify-between p-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm truncate">{item.productName}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-xs">{formatCurrency(item.price)}</span>
+                        {item.notes && (
+                          <span className="text-xs text-amber-400 truncate max-w-[120px]" title={item.notes}>
+                            📝 {item.notes}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-7 w-7 ${openNoteFor === item.productId ? "text-amber-400" : "text-muted-foreground"} hover:text-amber-400`}
+                        title="Adicionar observação"
+                        onClick={() => setOpenNoteFor(openNoteFor === item.productId ? null : item.productId)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
                       </Button>
-                      <span className="w-4 text-center font-bold text-sm">{item.quantity}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => updateQuantity(item.productId, 1)}>
-                        <Plus className="h-3 w-3" />
+                      <div className="flex items-center gap-0.5 bg-muted rounded-full px-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => updateQuantity(item.productId, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-4 text-center font-bold text-sm">{item.quantity}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => updateQuantity(item.productId, 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.productId)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.productId)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
+                  {openNoteFor === item.productId && (
+                    <div className="px-2 pb-2 flex gap-1.5 border-t border-border/50 pt-1.5 bg-amber-500/5">
+                      <Input
+                        autoFocus
+                        placeholder="Ex: sem cebola, bem passado, sem açúcar..."
+                        value={item.notes ?? ""}
+                        onChange={e => updateNote(item.productId, e.target.value)}
+                        className="h-8 text-sm border-amber-500/30 focus-visible:ring-amber-500/30"
+                        onKeyDown={e => e.key === "Enter" && setOpenNoteFor(null)}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground"
+                        onClick={() => setOpenNoteFor(null)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
