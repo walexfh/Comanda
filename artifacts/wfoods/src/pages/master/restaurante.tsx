@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  ShoppingCart, TrendingUp, Calendar, Lock, Unlock,
-  CreditCard, FlaskConical, DollarSign, AlertTriangle, CheckCircle
+  ShoppingCart, TrendingUp, Lock, Unlock,
+  CreditCard, FlaskConical, DollarSign, AlertTriangle, CheckCircle, Pencil
 } from "lucide-react";
 
 interface TenantDetail {
@@ -20,6 +20,7 @@ interface TenantDetail {
   slug: string;
   email: string | null;
   phone: string | null;
+  cnpj: string | null;
   address: string | null;
   status: string;
   rawStatus: string;
@@ -55,16 +56,28 @@ export default function MasterRestaurante() {
   const [showTrial, setShowTrial] = useState(false);
   const [showBlock, setShowBlock] = useState(false);
   const [showFee, setShowFee] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const [paymentMonths, setPaymentMonths] = useState(1);
   const [trialDays, setTrialDays] = useState(14);
   const [blockReason, setBlockReason] = useState("");
   const [newFee, setNewFee] = useState("");
+  const [editForm, setEditForm] = useState({ name: "", slug: "", phone: "", cnpj: "", address: "" });
 
   const load = () => {
     setLoading(true);
     apiFetch<TenantDetail>(`/api/master/tenants/${id}`)
-      .then(t => { setTenant(t); setNewFee(String(t.monthlyFee)); })
+      .then(t => {
+        setTenant(t);
+        setNewFee(String(t.monthlyFee));
+        setEditForm({
+          name: t.name,
+          slug: t.slug,
+          phone: t.phone ?? "",
+          cnpj: t.cnpj ?? "",
+          address: t.address ?? "",
+        });
+      })
       .finally(() => setLoading(false));
   };
 
@@ -113,6 +126,15 @@ export default function MasterRestaurante() {
                 </div>
               </div>
               <div className="flex flex-col items-start sm:items-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setShowEdit(true)}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar
+                </Button>
                 <div className={`flex items-center gap-1.5 font-semibold ${status.color}`}>
                   <StatusIcon className="w-4 h-4" />
                   {status.label}
@@ -380,6 +402,94 @@ export default function MasterRestaurante() {
               Salvar
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-primary" />
+              Editar Restaurante
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async e => {
+              e.preventDefault();
+              const { name, slug, phone, cnpj, address } = editForm;
+              if (!name || !slug || !phone || !cnpj || !address) {
+                toast.error("Preencha todos os campos.");
+                return;
+              }
+              await action(
+                () => apiFetch(`/api/master/tenants/${id}/info`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ name, slug, phone, cnpj, address }),
+                }),
+                "Dados do restaurante atualizados!"
+              );
+              setShowEdit(false);
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Nome do Restaurante *</Label>
+                <Input
+                  value={editForm.name}
+                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Boteco do João"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Identificador (slug) *</Label>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-sm shrink-0">/menu/</span>
+                  <Input
+                    value={editForm.slug}
+                    onChange={e => setEditForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
+                    placeholder="boteco-do-joao"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Telefone *</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="(11) 99999-9999"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>CNPJ *</Label>
+                <Input
+                  value={editForm.cnpj}
+                  onChange={e => setEditForm(f => ({ ...f, cnpj: e.target.value }))}
+                  placeholder="00.000.000/0000-00"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Endereço *</Label>
+                <Input
+                  value={editForm.address}
+                  onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="Rua das Flores, 123 — SP"
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>Cancelar</Button>
+              <Button type="submit" className="flex-1" disabled={actionLoading}>
+                {actionLoading ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </MasterLayout>

@@ -18,42 +18,16 @@ router.get("/tenants", requireAuth, async (_req, res): Promise<void> => {
   res.json(tenants);
 });
 
-// Check if email is allowed to register
-router.get("/tenants/check-email", async (req, res): Promise<void> => {
-  const email = req.query.email as string;
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
-    return;
-  }
-  const [allowed] = await db
-    .select()
-    .from(allowedEmailsTable)
-    .where(eq(allowedEmailsTable.email, email.toLowerCase().trim()));
-
-  res.json({ allowed: !!allowed });
-});
-
-// Submit a registration request
+// Submit a registration request (all registrations now go through master approval)
 router.post("/tenants/request-access", async (req, res): Promise<void> => {
-  const { name, email, restaurantName, phone, message } = req.body;
+  const { name, email, restaurantName, phone, cnpj, address, message } = req.body;
 
-  if (!name || !email || !restaurantName) {
-    res.status(400).json({ error: "name, email and restaurantName are required" });
+  if (!name || !email || !restaurantName || !phone || !cnpj || !address) {
+    res.status(400).json({ error: "Nome, e-mail, nome do restaurante, telefone, CNPJ e endereço são obrigatórios." });
     return;
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-
-  // Check if already in allowed list
-  const [alreadyAllowed] = await db
-    .select()
-    .from(allowedEmailsTable)
-    .where(eq(allowedEmailsTable.email, normalizedEmail));
-
-  if (alreadyAllowed) {
-    res.json({ alreadyAllowed: true });
-    return;
-  }
 
   // Check for duplicate pending request
   const [existing] = await db
@@ -72,7 +46,9 @@ router.post("/tenants/request-access", async (req, res): Promise<void> => {
       name,
       email: normalizedEmail,
       restaurantName,
-      phone: phone || null,
+      phone,
+      cnpj,
+      address,
       message: message || null,
     })
     .returning();

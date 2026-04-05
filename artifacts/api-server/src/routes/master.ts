@@ -106,6 +106,8 @@ router.get("/master/tenants", requireMaster, async (_req, res): Promise<void> =>
       name: t.name,
       slug: t.slug,
       phone: t.phone,
+      cnpj: t.cnpj,
+      address: t.address,
       email: adminUser?.email ?? null,
       status: getTenantStatus(t),
       rawStatus: t.status,
@@ -121,6 +123,38 @@ router.get("/master/tenants", requireMaster, async (_req, res): Promise<void> =>
   }));
 
   res.json(result);
+});
+
+// Create restaurant directly from master panel
+router.post("/master/tenants", requireMaster, async (req, res): Promise<void> => {
+  const { name, slug, phone, cnpj, address, adminEmail, adminPassword } = req.body;
+
+  if (!name || !slug || !phone || !cnpj || !address || !adminEmail || !adminPassword) {
+    res.status(400).json({ error: "Todos os campos são obrigatórios." });
+    return;
+  }
+
+  const normalizedSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, "-");
+  const [existingSlug] = await db.select().from(tenantsTable).where(eq(tenantsTable.slug, normalizedSlug));
+  if (existingSlug) {
+    res.status(400).json({ error: "Este identificador (slug) já está em uso." });
+    return;
+  }
+
+  const [tenant] = await db
+    .insert(tenantsTable)
+    .values({ name, slug: normalizedSlug, phone, cnpj, address })
+    .returning();
+
+  await db.insert(usersTable).values({
+    tenantId: tenant.id,
+    email: adminEmail.toLowerCase().trim(),
+    passwordHash: hashPassword(adminPassword),
+    name: "Admin",
+    role: "admin",
+  });
+
+  res.status(201).json({ success: true, tenant });
 });
 
 router.get("/master/tenants/:id", requireMaster, async (req, res): Promise<void> => {
@@ -148,6 +182,7 @@ router.get("/master/tenants/:id", requireMaster, async (req, res): Promise<void>
     name: t.name,
     slug: t.slug,
     phone: t.phone,
+    cnpj: t.cnpj,
     address: t.address,
     email: adminUser?.email ?? null,
     status: getTenantStatus(t),
@@ -162,6 +197,39 @@ router.get("/master/tenants/:id", requireMaster, async (req, res): Promise<void>
     totalRevenue,
     monthlyRevenue,
   });
+});
+
+// Edit restaurant info
+router.patch("/master/tenants/:id/info", requireMaster, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  const { name, slug, phone, cnpj, address } = req.body;
+
+  if (!name || !slug || !phone || !cnpj || !address) {
+    res.status(400).json({ error: "Todos os campos são obrigatórios." });
+    return;
+  }
+
+  const normalizedSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, "-");
+
+  // Check slug uniqueness (excluding current tenant)
+  const [existingSlug] = await db
+    .select()
+    .from(tenantsTable)
+    .where(eq(tenantsTable.slug, normalizedSlug));
+
+  if (existingSlug && existingSlug.id !== id) {
+    res.status(400).json({ error: "Este identificador (slug) já está em uso." });
+    return;
+  }
+
+  const [tenant] = await db
+    .update(tenantsTable)
+    .set({ name, slug: normalizedSlug, phone, cnpj, address, updatedAt: new Date() })
+    .where(eq(tenantsTable.id, id))
+    .returning();
+
+  if (!tenant) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ success: true, tenant });
 });
 
 router.patch("/master/tenants/:id/block", requireMaster, async (req, res): Promise<void> => {
@@ -310,22 +378,12 @@ router.patch("/master/registration-requests/:id/approve", requireMaster, async (
     .where(eq(registrationRequestsTable.id, id));
   if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
-  // Add email to allowed list
-  const [already] = await db
-    .select()
-    .from(allowedEmailsTable)
-    .where(eq(allowedEmailsTable.email, request.email));
-
-  if (!already) {
-    await db.insert(allowedEmailsTable).values({ email: request.email, note: `Aprovado via solicitação #${id}` });
-  }
-
   await db
     .update(registrationRequestsTable)
     .set({ status: "approved" })
     .where(eq(registrationRequestsTable.id, id));
 
-  res.json({ success: true });
+  res.json({ success: true, request });
 });
 
 router.patch("/master/registration-requests/:id/reject", requireMaster, async (req, res): Promise<void> => {
