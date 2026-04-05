@@ -45,7 +45,8 @@ router.post("/master/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const [master] = await db.select().from(masterUsersTable).where(eq(masterUsersTable.email, email));
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const [master] = await db.select().from(masterUsersTable).where(eq(masterUsersTable.email, normalizedEmail));
   if (!master || !verifyPassword(password, master.passwordHash)) {
     res.status(401).json({ error: "Credenciais inválidas" });
     return;
