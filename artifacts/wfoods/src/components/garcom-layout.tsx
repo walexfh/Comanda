@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
+import { useGarcomNotifications } from "@/hooks/use-garcom-notifications";
 
 interface GarcomLayoutProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface GarcomLayoutProps {
 export function GarcomLayout({ children, title, onBack }: GarcomLayoutProps) {
   const { user, logout, isLoading } = useAuth();
   const [location, setLocation] = useLocation();
+  useGarcomNotifications();
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "waiter")) {

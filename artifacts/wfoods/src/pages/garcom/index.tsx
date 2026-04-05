@@ -1,7 +1,6 @@
 import { GarcomLayout } from "@/components/garcom-layout";
 import { useListTables, useListOrders } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { useWebSocket } from "@/hooks/use-websocket";
 import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ type Order = NonNullable<ReturnType<typeof useListOrders>["data"]>[number];
 type Table = NonNullable<ReturnType<typeof useListTables>["data"]>[number];
 
 export default function GarcomMesas() {
-  useWebSocket();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { data: tables, isLoading: isLoadingTables } = useListTables();
