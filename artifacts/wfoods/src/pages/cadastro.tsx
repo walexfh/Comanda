@@ -59,7 +59,7 @@ export default function Cadastro() {
         },
       });
       toast.success("Restaurante cadastrado com sucesso! Faça login para continuar.");
-      navigate("/login/admin");
+      navigate(`/login/admin?slug=${data.slug}`);
     } catch (err: unknown) {
       const msg =
         err && typeof err === "object" && "data" in err

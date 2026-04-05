@@ -7,18 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 import { useEffect } from "react";
 
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
   password: z.string().min(1, "Senha obrigatória"),
-  tenantSlug: z.string().min(1, "Slug obrigatório"),
+  tenantSlug: z.string().min(1, "Identificador obrigatório"),
 });
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const slugFromUrl = params.get("slug") ?? "";
+
   const { setToken, user } = useAuth();
   const adminLogin = useAdminLogin();
 
@@ -27,9 +31,15 @@ export default function AdminLogin() {
     defaultValues: {
       email: "",
       password: "",
-      tenantSlug: "",
+      tenantSlug: slugFromUrl,
     },
   });
+
+  useEffect(() => {
+    if (slugFromUrl) {
+      form.setValue("tenantSlug", slugFromUrl);
+    }
+  }, [slugFromUrl, form]);
 
   useEffect(() => {
     if (user?.role === "admin") {
@@ -46,8 +56,8 @@ export default function AdminLogin() {
           toast.success("Login efetuado com sucesso");
           setLocation("/admin");
         },
-        onError: (err) => {
-          toast.error(err.message || "Erro ao efetuar login");
+        onError: () => {
+          toast.error("Restaurante, e-mail ou senha incorretos");
         },
       }
     );
@@ -57,9 +67,12 @@ export default function AdminLogin() {
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 dark">
       <Card className="w-full max-w-md shadow-lg border-primary/20">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-center">Admin Login</CardTitle>
+          <Link href="/" className="text-primary font-bold text-sm text-center block hover:underline mb-1">
+            WFoods ComandaFácil
+          </Link>
+          <CardTitle className="text-2xl font-bold tracking-tight text-center">Acesso Admin</CardTitle>
           <CardDescription className="text-center">
-            Acesso ao painel gerencial do WFoods ComandaFácil
+            Entre com os dados do seu restaurante
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -70,10 +83,16 @@ export default function AdminLogin() {
                 name="tenantSlug"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Restaurante (Slug)</FormLabel>
+                    <FormLabel>Identificador do Restaurante</FormLabel>
                     <FormControl>
-                      <Input placeholder="meu-restaurante" {...field} />
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground text-sm shrink-0">/menu/</span>
+                        <Input placeholder="meu-restaurante" {...field} />
+                      </div>
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      O identificador foi definido no momento do cadastro
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -85,7 +104,7 @@ export default function AdminLogin() {
                   <FormItem>
                     <FormLabel>E-mail</FormLabel>
                     <FormControl>
-                      <Input placeholder="admin@exemplo.com" type="email" {...field} />
+                      <Input placeholder="admin@exemplo.com" type="email" autoComplete="email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -98,7 +117,7 @@ export default function AdminLogin() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input placeholder="••••••••" type="password" {...field} />
+                      <Input placeholder="••••••••" type="password" autoComplete="current-password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -109,6 +128,12 @@ export default function AdminLogin() {
               </Button>
             </form>
           </Form>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Ainda não tem conta?{" "}
+            <Link href="/cadastro" className="text-primary hover:underline">
+              Cadastrar restaurante
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
