@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
+import { MasterAuthProvider } from "@/lib/master-auth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/index";
 import AdminLogin from "@/pages/login/admin";
@@ -19,6 +20,10 @@ import GarcomPedido from "@/pages/garcom/pedido";
 import GarcomFechar from "@/pages/garcom/fechar";
 import PublicMenu from "@/pages/menu";
 import Cadastro from "@/pages/cadastro";
+import MasterLogin from "@/pages/master/login";
+import MasterDashboard from "@/pages/master/index";
+import MasterRestaurantes from "@/pages/master/restaurantes";
+import MasterRestaurante from "@/pages/master/restaurante";
 
 
 const queryClient = new QueryClient();
@@ -41,6 +46,10 @@ function Router() {
       <Route path="/garcom/pedido/:tableId" component={GarcomPedido} />
       <Route path="/garcom/fechar/:tableId" component={GarcomFechar} />
       <Route path="/menu/:tenantSlug" component={PublicMenu} />
+      <Route path="/master/login" component={MasterLogin} />
+      <Route path="/master" component={MasterDashboard} />
+      <Route path="/master/restaurantes" component={MasterRestaurantes} />
+      <Route path="/master/restaurantes/:id" component={MasterRestaurante} />
 
       <Route component={NotFound} />
     </Switch>
@@ -52,9 +61,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AuthProvider>
-            <Router />
-          </AuthProvider>
+          <MasterAuthProvider>
+            <AuthProvider>
+              <Router />
+            </AuthProvider>
+          </MasterAuthProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

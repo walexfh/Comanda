@@ -31,10 +31,25 @@ SaaS system for bars and restaurants — multi-tenant, real-time, with waiter ap
 - **Admin**: email=`admin@demo.com`, password=`demo123`
 - **Waiter**: name=`João`, `Maria`, or `Carlos`, password=`garcom123`
 - **Public menu**: `/menu/demo`
+- **Master Panel**: email=`master@wfoods.com`, password=`master@2024!`
+
+## Auth Tokens
+
+- Regular users: stored in localStorage as `wfoods_token`
+- Master users: stored in localStorage as `wfoods_master_token`
+
+## Tenant Status System
+
+Tenant status values: `active`, `blocked`, `trial`, `trial_expired`, `overdue`, `expiring_soon`, `overdue_blocked`
+
+- Auto-block: tenants with `subscriptionExpiresAt` overdue >3 days are automatically blocked in `requireAuth`
+- `requireAuth` is async — checks tenant status on every authenticated request
 
 ## Database Schema
 
-Tables: `tenants`, `users`, `waiters`, `categories`, `products`, `tables`, `orders`, `order_items`, `payments`
+Tables: `tenants`, `users`, `waiters`, `categories`, `products`, `tables`, `orders`, `order_items`, `payments`, `master_users`
+
+Tenants table extended: `status`, `monthly_fee`, `subscription_expires_at`, `trial_ends_at`, `last_payment_at`, `block_reason`
 
 ## Key Commands
 
@@ -65,6 +80,15 @@ Tables: `tenants`, `users`, `waiters`, `categories`, `products`, `tables`, `orde
 ### Waiter (requires waiter auth)
 - `/garcom` — Table selector (PWA-optimized, no images)
 - `/garcom/pedido/:tableId` — Fast order entry screen
+
+### Master Panel (requires master auth — separate token)
+- `/master/login` — Master admin login
+- `/master` — Dashboard with stats (total, active, trial, blocked, MRR)
+- `/master/restaurantes` — List all tenants with search/filter
+- `/master/restaurantes/:id` — Tenant detail: revenue chart, block/unblock, register payment, set trial, change fee
+
+Master API routes: `/api/master/*`
+Master middleware: `api-server/src/middlewares/master.ts` (requireMaster)
 
 ## Automatic Printing (Local Service)
 

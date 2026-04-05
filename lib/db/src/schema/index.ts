@@ -7,3 +7,4 @@ export * from "./tables";
 export * from "./orders";
 export * from "./order_items";
 export * from "./payments";
+export * from "./master_users";
