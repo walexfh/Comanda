@@ -64,14 +64,17 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 dark">
-      <Card className="w-full max-w-md shadow-lg border-primary/20">
-        <CardHeader className="space-y-1">
-          <Link href="/" className="text-primary font-bold text-sm text-center block hover:underline mb-1">
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)" }}>
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <CardHeader className="space-y-1 pb-4">
+          <div className="flex justify-center mb-3">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-xl shadow-md" style={{ background: "linear-gradient(135deg, #14532d, #166534)" }}>W</div>
+          </div>
+          <Link href="/" className="text-primary font-bold text-xs text-center block hover:underline uppercase tracking-wider">
             WFoods ComandaFácil
           </Link>
-          <CardTitle className="text-2xl font-bold tracking-tight text-center">Acesso Admin</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight text-center text-slate-800">Acesso Admin</CardTitle>
+          <CardDescription className="text-center text-slate-500">
             Entre com os dados do seu restaurante
           </CardDescription>
         </CardHeader>

@@ -49,73 +49,73 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ─── Light theme — Public menu & Admin panel ─── */
 :root {
-  /* Clean white/warm for public menu */
-  --background: 40 33% 98%;
-  --foreground: 20 14% 4%;
-  
+  --background: 210 20% 97%;
+  --foreground: 215 25% 10%;
+
   --card: 0 0% 100%;
-  --card-foreground: 20 14% 4%;
-  --card-border: 40 20% 90%;
-  
+  --card-foreground: 215 25% 10%;
+  --card-border: 215 15% 88%;
+
   --popover: 0 0% 100%;
-  --popover-foreground: 20 14% 4%;
-  --popover-border: 40 20% 90%;
-  
-  --primary: 153 60% 30%; /* Fresh green */
+  --popover-foreground: 215 25% 10%;
+  --popover-border: 215 15% 88%;
+
+  --primary: 153 55% 28%;       /* Deep green — brand */
   --primary-foreground: 0 0% 100%;
-  
-  --secondary: 40 50% 90%;
-  --secondary-foreground: 20 14% 4%;
-  
-  --muted: 40 20% 95%;
-  --muted-foreground: 25 10% 40%;
-  
-  --accent: 35 100% 50%; /* Warm amber */
+
+  --secondary: 215 15% 92%;
+  --secondary-foreground: 215 25% 20%;
+
+  --muted: 215 15% 94%;
+  --muted-foreground: 215 15% 42%;
+
+  --accent: 35 95% 50%;         /* Amber accent */
   --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 84% 60%;
+
+  --destructive: 0 78% 55%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 40 20% 90%;
-  --input: 40 20% 90%;
-  --ring: 153 60% 30%;
+  --border: 215 15% 88%;
+  --input: 215 15% 88%;
+  --ring: 153 55% 28%;
 
   --radius: 0.5rem;
   --app-font-sans: 'Inter', sans-serif;
 }
 
-/* Warm dark greens and ambers for operational panels */
+/* ─── Dark theme — Garçom PWA (handheld, low light) ─── */
 .dark {
-  --background: 160 20% 10%; /* Dark green almost black */
-  --foreground: 40 33% 98%;
-  
-  --card: 160 15% 14%;
-  --card-foreground: 40 33% 98%;
-  --card-border: 160 15% 20%;
-  
-  --popover: 160 15% 14%;
-  --popover-foreground: 40 33% 98%;
-  --popover-border: 160 15% 20%;
-  
-  --primary: 35 100% 55%; /* Bright amber */
-  --primary-foreground: 160 20% 10%;
-  
-  --secondary: 160 15% 20%;
-  --secondary-foreground: 40 33% 98%;
-  
-  --muted: 160 15% 18%;
-  --muted-foreground: 160 10% 60%;
-  
-  --accent: 153 60% 40%; /* Lighter green accent */
+  --background: 222 28% 11%;
+  --foreground: 210 30% 96%;
+
+  --card: 222 22% 16%;
+  --card-foreground: 210 30% 96%;
+  --card-border: 222 20% 22%;
+
+  --popover: 222 22% 16%;
+  --popover-foreground: 210 30% 96%;
+  --popover-border: 222 20% 22%;
+
+  --primary: 35 95% 58%;        /* Bright amber for dark mode */
+  --primary-foreground: 222 28% 11%;
+
+  --secondary: 222 20% 22%;
+  --secondary-foreground: 210 30% 96%;
+
+  --muted: 222 20% 20%;
+  --muted-foreground: 215 15% 58%;
+
+  --accent: 153 50% 42%;
   --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 70% 50%;
+
+  --destructive: 0 68% 52%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 160 15% 20%;
-  --input: 160 15% 20%;
-  --ring: 35 100% 55%;
+  --border: 222 20% 22%;
+  --input: 222 20% 22%;
+  --ring: 35 95% 58%;
 }
 
 @layer base {
