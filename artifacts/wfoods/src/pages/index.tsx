@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export default function Landing() {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background p-4 dark">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-8 text-center">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-primary">WFoods ComandaFácil</h1>
