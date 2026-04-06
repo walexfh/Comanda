@@ -3,11 +3,12 @@ import { useListOrders, useListTables, useUpdateOrderStatus } from "@workspace/a
 import { useParams, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Printer, Receipt, CreditCard, Banknote, Smartphone, CheckCircle2, Clock } from "lucide-react";
+import { Printer, Receipt, CreditCard, Banknote, Smartphone, CheckCircle2, Clock, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const SERVICE_FEE_RATE = 0.10;
+const PICKUP_THRESHOLD = 80; // Tables above this number are pickup orders (no service fee)
 
 const PAYMENT_METHODS = [
   { id: "cartao", label: "Cartão", icon: CreditCard, color: "text-blue-500 border-blue-500/30 hover:bg-blue-500/10" },
@@ -26,6 +27,7 @@ export default function GarcomFecharConta() {
   const updateStatus = useUpdateOrderStatus();
 
   const tableNumber = tables?.find(t => t.id === parseInt(tableId!))?.number ?? tableId;
+  const isPickup = typeof tableNumber === "number" && tableNumber > PICKUP_THRESHOLD;
 
   const activeOrders = useMemo(() => {
     if (!allOrders) return [];
@@ -52,7 +54,7 @@ export default function GarcomFecharConta() {
   }, [activeOrders]);
 
   const subtotal = allItems.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0);
-  const serviceFee = subtotal * SERVICE_FEE_RATE;
+  const serviceFee = isPickup ? 0 : subtotal * SERVICE_FEE_RATE;
   const totalWithFee = subtotal + serviceFee;
 
   const now = new Date().toLocaleString("pt-BR", {
@@ -111,7 +113,7 @@ export default function GarcomFecharConta() {
     }
   };
 
-  const title = `Fechar Conta — Mesa ${tableNumber}`;
+  const title = isPickup ? `Fechar Conta — Retirada #${tableNumber}` : `Fechar Conta — Mesa ${tableNumber}`;
 
   if (isLoading) {
     return (
@@ -172,9 +174,16 @@ export default function GarcomFecharConta() {
           {/* Receipt */}
           <div id="print-receipt" className="bg-card rounded-xl border border-border p-4 font-mono text-sm">
             <div className="text-center border-b border-dashed border-border pb-3 mb-3">
-              <div className="font-bold text-lg">COMANDA — MESA {tableNumber}</div>
+              <div className="font-bold text-lg">
+                {isPickup ? `RETIRADA #${tableNumber}` : `COMANDA — MESA ${tableNumber}`}
+              </div>
               <div className="text-muted-foreground text-xs">{now}</div>
-              {/* Status badge — visible on screen and print */}
+              {isPickup && (
+                <div className="mt-1.5 inline-flex items-center gap-1.5 border border-blue-400 text-blue-500 rounded-full px-3 py-0.5 text-xs font-semibold">
+                  <ShoppingBag className="w-3 h-3" />
+                  PEDIDO PARA RETIRADA
+                </div>
+              )}
               <div className="mt-2 inline-flex items-center gap-1.5 border border-amber-400 text-amber-600 rounded-full px-3 py-0.5 text-xs font-semibold">
                 <Clock className="w-3 h-3" />
                 AGUARDANDO PAGAMENTO
@@ -209,10 +218,17 @@ export default function GarcomFecharConta() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Taxa de serviço ({SERVICE_FEE_RATE * 100}%)</span>
-                <span>{formatCurrency(serviceFee)}</span>
-              </div>
+              {isPickup ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-500 font-medium">Retirada — Sem taxa de serviço</span>
+                  <span className="text-blue-500">–</span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Taxa de serviço ({SERVICE_FEE_RATE * 100}%)</span>
+                  <span>{formatCurrency(serviceFee)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-1">
                 <span>TOTAL</span>
                 <span>{formatCurrency(totalWithFee)}</span>

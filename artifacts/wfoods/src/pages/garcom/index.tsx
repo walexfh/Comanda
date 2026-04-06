@@ -11,8 +11,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Receipt, Pencil, X, Lock, ChevronDown, History, RotateCcw } from "lucide-react";
+import { Plus, Receipt, Pencil, X, Lock, ChevronDown, History, RotateCcw, ShoppingBag } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+
+const PICKUP_THRESHOLD = 80;
 
 type Order = NonNullable<ReturnType<typeof useListOrders>["data"]>[number];
 type Table = NonNullable<ReturnType<typeof useListTables>["data"]>[number];
@@ -201,6 +203,8 @@ export default function GarcomMesas() {
     }
   };
 
+  const isPickupSelected = selectedTable ? selectedTable.number > PICKUP_THRESHOLD : false;
+
   if (isLoadingTables) {
     return <GarcomLayout><div className="p-4 text-center text-muted-foreground">Carregando mesas...</div></GarcomLayout>;
   }
@@ -210,6 +214,7 @@ export default function GarcomMesas() {
       <div className="p-3 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))" }}>
         {tables?.map((table) => {
           const occupied = activeOrders(table.id).length > 0;
+          const isPickup = table.number > PICKUP_THRESHOLD;
           return (
             <button
               key={table.id}
@@ -218,16 +223,26 @@ export default function GarcomMesas() {
                 aspect-square flex flex-col items-center justify-center rounded-2xl text-center
                 font-bold transition-all active:scale-95
                 ${occupied
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                  : "bg-card border-2 border-border text-foreground hover:border-primary/50"}
+                  ? isPickup
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                    : "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                  : isPickup
+                    ? "bg-card border-2 border-blue-400/50 text-blue-400 hover:border-blue-400"
+                    : "bg-card border-2 border-border text-foreground hover:border-primary/50"}
               `}
             >
-              <span className="text-4xl font-black leading-none">{table.number}</span>
-              {table.label && (
-                <span className="text-[10px] mt-1 opacity-70 px-1 truncate max-w-full">{table.label}</span>
+              {isPickup ? (
+                <ShoppingBag className="w-6 h-6 mb-0.5 opacity-80" />
+              ) : (
+                <span className="text-4xl font-black leading-none">{table.number}</span>
               )}
+              {isPickup ? (
+                <span className="text-[11px] font-black leading-tight">#{table.number}</span>
+              ) : table.label ? (
+                <span className="text-[10px] mt-1 opacity-70 px-1 truncate max-w-full">{table.label}</span>
+              ) : null}
               {occupied && (
-                <span className="text-[10px] mt-1 font-bold opacity-80">OCUPADA</span>
+                <span className="text-[10px] mt-0.5 font-bold opacity-80">{isPickup ? "RETIRADA" : "OCUPADA"}</span>
               )}
             </button>
           );
@@ -257,11 +272,12 @@ export default function GarcomMesas() {
       {/* Table options modal */}
       <Dialog open={!!selectedTable} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="sm:max-w-sm p-0 gap-0 overflow-hidden">
-          <DialogHeader className={`p-4 pb-3 ${isOccupied ? "bg-primary/10 border-b border-primary/20" : "border-b border-border"}`}>
-            <DialogTitle className="text-2xl font-black">
-              Mesa {selectedTable?.number}
+          <DialogHeader className={`p-4 pb-3 ${isOccupied ? isPickupSelected ? "bg-blue-500/10 border-b border-blue-400/20" : "bg-primary/10 border-b border-primary/20" : "border-b border-border"}`}>
+            <DialogTitle className="text-2xl font-black flex items-center gap-2">
+              {isPickupSelected && <ShoppingBag className="w-5 h-5 text-blue-500" />}
+              {isPickupSelected ? `Retirada #${selectedTable?.number}` : `Mesa ${selectedTable?.number}`}
               {selectedTable?.label && (
-                <span className="text-sm font-normal text-muted-foreground ml-2">{selectedTable.label}</span>
+                <span className="text-sm font-normal text-muted-foreground ml-1">{selectedTable.label}</span>
               )}
             </DialogTitle>
             <div className="flex items-center gap-2 mt-1">
