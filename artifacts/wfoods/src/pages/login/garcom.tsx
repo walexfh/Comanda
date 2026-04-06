@@ -54,7 +54,7 @@ export default function WaiterLogin() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 dark">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-lg border-primary/20">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold tracking-tight text-center">Garçom Login</CardTitle>

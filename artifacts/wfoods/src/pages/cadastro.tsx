@@ -56,7 +56,7 @@ export default function Cadastro() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background p-4 dark">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background p-4">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center space-y-1">
           <Link href="/" className="text-primary font-bold text-xl hover:underline">
