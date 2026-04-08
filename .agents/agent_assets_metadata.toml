@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bdggmwKc35q-3YiO_UEmD"
+uri = "file://screenshots/cupom-fiscal.jpg"
+type = "image"
+title = "Cupom Fiscal — Formato 80mm (Impressora Térmica)"
