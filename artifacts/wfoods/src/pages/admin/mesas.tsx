@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, QrCode, Download, Copy, RotateCcw, History } from "lucide-react";
+import { Plus, Trash2, QrCode, Download, Copy, RotateCcw, History, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,6 +30,17 @@ const METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
 };
 
+type HistorySession = {
+  tableId: number;
+  tableNumber: number;
+  orders: NonNullable<ReturnType<typeof useListOrders>["data"]>;
+  closedAt: string;
+  total: number;
+};
+
+const PICKUP_THRESHOLD = 80;
+const SERVICE_FEE_RATE = 0.10;
+
 export default function AdminMesas() {
   const { data: tables, isLoading } = useListTables();
   const { data: finalizedOrders } = useListOrders({ status: "finalizado" });
@@ -43,6 +54,7 @@ export default function AdminMesas() {
   const [newLabel, setNewLabel] = useState("");
   const [qrTable, setQrTable] = useState<{ number: number; label?: string | null } | null>(null);
   const [reopenLoading, setReopenLoading] = useState<number | null>(null);
+  const [printSession, setPrintSession] = useState<HistorySession | null>(null);
 
   const tableMap = useMemo(() => {
     const map: Record<number, { number: number; label?: string | null }> = {};
@@ -322,16 +334,27 @@ export default function AdminMesas() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 flex-shrink-0"
-                        disabled={reopenLoading === session.tableId}
-                        onClick={() => handleReopen(session.tableId, session.orders.map(o => o.id))}
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        {reopenLoading === session.tableId ? "Reabrindo..." : "Reabrir"}
-                      </Button>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                          onClick={() => setPrintSession(session)}
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Cupom
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+                          disabled={reopenLoading === session.tableId}
+                          onClick={() => handleReopen(session.tableId, session.orders.map(o => o.id))}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          {reopenLoading === session.tableId ? "Reabrindo..." : "Reabrir"}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -340,6 +363,166 @@ export default function AdminMesas() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Cupom Fiscal Dialog */}
+      <Dialog open={!!printSession} onOpenChange={(open) => !open && setPrintSession(null)}>
+        <DialogContent className="sm:max-w-sm p-0 gap-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Printer className="w-4 h-4" />
+              Cupom Fiscal — Mesa {printSession?.tableNumber}
+            </DialogTitle>
+          </DialogHeader>
+
+          {printSession && (() => {
+            const isPickup = printSession.tableNumber > PICKUP_THRESHOLD;
+            const allItems = (() => {
+              const map = new Map<string, { name: string; qty: number; unit: number }>();
+              for (const order of printSession.orders) {
+                for (const item of order.items) {
+                  const k = String(item.productId);
+                  if (map.has(k)) {
+                    map.get(k)!.qty += item.quantity;
+                  } else {
+                    map.set(k, {
+                      name: item.productName ?? `Produto #${item.productId}`,
+                      qty: item.quantity,
+                      unit: parseFloat(String(item.unitPrice ?? 0)),
+                    });
+                  }
+                }
+              }
+              return Array.from(map.values());
+            })();
+
+            const subtotal = allItems.reduce((s, i) => s + i.unit * i.qty, 0);
+            const serviceFee = isPickup ? 0 : subtotal * SERVICE_FEE_RATE;
+            const total = subtotal + serviceFee;
+            const closedAt = format(new Date(printSession.closedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+            const restaurantName = tenantSlug.replace(/-/g, " ").toUpperCase();
+
+            const handlePrint = () => {
+              const el = document.getElementById("cupom-print-area");
+              if (!el) return;
+              const win = window.open("", "_blank", "width=400,height=700");
+              if (!win) return;
+              win.document.write(`
+                <html>
+                  <head>
+                    <title>Cupom — Mesa ${printSession.tableNumber}</title>
+                    <style>
+                      * { margin: 0; padding: 0; box-sizing: border-box; }
+                      body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; background: #fff; width: 80mm; }
+                      .center { text-align: center; }
+                      .bold { font-weight: bold; }
+                      .sep { border-top: 1px dashed #000; margin: 4px 0; }
+                      .row { display: flex; justify-content: space-between; margin: 2px 0; }
+                      .big { font-size: 14px; }
+                    </style>
+                  </head>
+                  <body>${el.innerHTML}</body>
+                </html>
+              `);
+              win.document.close();
+              win.focus();
+              win.print();
+              win.close();
+            };
+
+            return (
+              <div className="p-4 space-y-4">
+                {/* Receipt preview */}
+                <div
+                  id="cupom-print-area"
+                  className="bg-white border border-border rounded-lg p-4 font-mono text-[11px] leading-tight text-black"
+                >
+                  {/* Header */}
+                  <div className="text-center space-y-0.5 pb-2 border-b border-dashed border-gray-400">
+                    <div className="font-bold text-sm">{restaurantName || "RESTAURANTE"}</div>
+                    <div>CNPJ: 00.000.000/0001-00</div>
+                    <div className="font-bold mt-1">* CUPOM NÃO FISCAL *</div>
+                  </div>
+
+                  {/* Meta */}
+                  <div className="py-2 border-b border-dashed border-gray-400">
+                    <div className="flex justify-between">
+                      <span>{isPickup ? `RETIRADA #${printSession.tableNumber}` : `MESA: ${printSession.tableNumber}`}</span>
+                      <span>Nº {printSession.orders[0]?.id ?? "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Data/Hora:</span>
+                      <span>{closedAt}</span>
+                    </div>
+                    {isPickup && <div className="text-center font-bold mt-1">*** PEDIDO PARA RETIRADA ***</div>}
+                  </div>
+
+                  {/* Items header */}
+                  <div className="py-1 border-b border-dashed border-gray-400">
+                    <div className="flex justify-between text-[10px] uppercase">
+                      <span className="flex-1">Descrição</span>
+                      <span className="w-6 text-center">Qtd</span>
+                      <span className="w-16 text-right">Total</span>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div className="py-1 border-b border-dashed border-gray-400 space-y-0.5">
+                    {allItems.map((item, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span className="flex-1 truncate pr-1">{item.name}</span>
+                        <span className="w-6 text-center">{item.qty}x</span>
+                        <span className="w-16 text-right">{formatCurrency(item.unit * item.qty)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Totals */}
+                  <div className="py-2 space-y-0.5 border-b border-dashed border-gray-400">
+                    <div className="flex justify-between">
+                      <span>SUBTOTAL</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    {isPickup ? (
+                      <div className="flex justify-between">
+                        <span>TAXA SERVIÇO</span>
+                        <span>ISENTO (RETIRADA)</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span>TAXA SERVIÇO (10%)</span>
+                        <span>{formatCurrency(serviceFee)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Grand total */}
+                  <div className="py-2 border-b border-dashed border-gray-400">
+                    <div className="flex justify-between font-bold text-sm">
+                      <span>TOTAL</span>
+                      <span>{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="pt-2 text-center space-y-0.5">
+                    <div>Obrigado pela visita!</div>
+                    <div>Volte sempre!</div>
+                    <div className="text-[9px] text-gray-500 mt-1">
+                      Este documento não possui valor fiscal.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Print button */}
+                <Button className="w-full gap-2" onClick={handlePrint}>
+                  <Printer className="w-4 h-4" />
+                  Imprimir Cupom
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Dialog */}
       <Dialog open={!!qrTable} onOpenChange={(open) => !open && setQrTable(null)}>
