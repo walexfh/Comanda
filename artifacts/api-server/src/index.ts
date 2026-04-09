@@ -4,19 +4,14 @@ import { logger } from "./lib/logger";
 import { setupWebSocket } from "./lib/ws";
 import { initDb } from "./lib/init-db";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const rawPort = process.env["PORT"] || "8080";
 
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  logger.warn(`Invalid PORT value: "${rawPort}", defaulting to 8080`);
 }
+
 
 const server = createServer(app);
 setupWebSocket(server);
