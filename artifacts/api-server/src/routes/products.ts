@@ -26,7 +26,7 @@ router.get("/products", requireAuth, async (req: AuthenticatedRequest, res): Pro
   if (available != null) conditions.push(eq(productsTable.available, available));
 
   const products = await query.where(and(...conditions)).orderBy(productsTable.id);
-  res.json(products.map((p) => ({ ...p, price: parseFloat(p.price as unknown as string) })));
+  res.json(products.map((p: any) => ({ ...p, price: parseFloat(p.price as unknown as string) })));
 });
 
 router.post("/products", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
@@ -136,7 +136,7 @@ router.get("/menu/:tenantSlug", async (req, res): Promise<void> => {
   res.json({
     tenant,
     categories,
-    products: products.map((p) => ({ ...p, price: parseFloat(p.price as unknown as string) })),
+    products: products.map((p: any) => ({ ...p, price: parseFloat(p.price as unknown as string) })),
   });
 });
 
