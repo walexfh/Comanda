@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "rootDir": "../../",
-    "noEmit": true
-  },
-  "include": ["src", "../../lib/api-zod/src", "../../lib/db/src"]
-}
