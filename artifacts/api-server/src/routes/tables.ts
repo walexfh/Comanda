@@ -84,7 +84,7 @@ router.delete("/tables/:tableId", requireAuth, async (req: AuthenticatedRequest,
 });
 
 router.post("/tables/:tableId/close-receipt", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
-  const tableId = parseInt(req.params.tableId);
+  const tableId = parseInt(req.params.tableId as string);
   if (isNaN(tableId)) {
     res.status(400).json({ error: "Invalid table ID" });
     return;
@@ -96,7 +96,7 @@ router.post("/tables/:tableId/close-receipt", requireAuth, async (req: Authentic
 });
 
 router.post("/tables/:tableId/reopen", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
-  const tableId = parseInt(req.params.tableId);
+  const tableId = parseInt(req.params.tableId as string);
   if (isNaN(tableId)) {
     res.status(400).json({ error: "Invalid table ID" });
     return;

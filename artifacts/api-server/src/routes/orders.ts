@@ -187,7 +187,7 @@ router.patch("/orders/:orderId/status", requireAuth, async (req: AuthenticatedRe
 });
 
 router.post("/orders/:orderId/ring", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
-  const orderId = parseInt(req.params.orderId);
+  const orderId = parseInt(req.params.orderId as string);
   if (isNaN(orderId)) {
     res.status(400).json({ error: "Invalid order ID" });
     return;
@@ -250,7 +250,7 @@ router.post("/caixa/fechamento/print", requireAuth, async (req: AuthenticatedReq
 });
 
 router.delete("/orders/:orderId", requireAuth, async (req: AuthenticatedRequest, res): Promise<void> => {
-  const orderId = parseInt(req.params.orderId);
+  const orderId = parseInt(req.params.orderId as string);
   if (isNaN(orderId)) {
     res.status(400).json({ error: "Invalid order ID" });
     return;

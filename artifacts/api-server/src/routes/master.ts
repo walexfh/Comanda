@@ -159,7 +159,7 @@ router.post("/master/tenants", requireMaster, async (req, res): Promise<void> =>
 });
 
 router.get("/master/tenants/:id", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const [t] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, id));
   if (!t) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -202,7 +202,7 @@ router.get("/master/tenants/:id", requireMaster, async (req, res): Promise<void>
 
 // Edit restaurant info
 router.patch("/master/tenants/:id/info", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const { name, slug, phone, cnpj, address } = req.body;
 
   if (!name || !slug || !phone || !cnpj || !address) {
@@ -234,7 +234,7 @@ router.patch("/master/tenants/:id/info", requireMaster, async (req, res): Promis
 });
 
 router.patch("/master/tenants/:id/block", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const { reason } = req.body;
 
   const [tenant] = await db
@@ -248,7 +248,7 @@ router.patch("/master/tenants/:id/block", requireMaster, async (req, res): Promi
 });
 
 router.patch("/master/tenants/:id/unblock", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
 
   const [tenant] = await db
     .update(tenantsTable)
@@ -261,7 +261,7 @@ router.patch("/master/tenants/:id/unblock", requireMaster, async (req, res): Pro
 });
 
 router.post("/master/tenants/:id/payment", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const { months = 1 } = req.body;
 
   const [current] = await db.select().from(tenantsTable).where(eq(tenantsTable.id, id));
@@ -290,7 +290,7 @@ router.post("/master/tenants/:id/payment", requireMaster, async (req, res): Prom
 });
 
 router.post("/master/tenants/:id/trial", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const { days = 14 } = req.body;
 
   const trialEnd = addDays(new Date(), days);
@@ -312,7 +312,7 @@ router.post("/master/tenants/:id/trial", requireMaster, async (req, res): Promis
 });
 
 router.patch("/master/tenants/:id/fee", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   const { monthlyFee } = req.body;
 
   const [tenant] = await db
@@ -353,7 +353,7 @@ router.post("/master/allowed-emails", requireMaster, async (req, res): Promise<v
 });
 
 router.delete("/master/allowed-emails/:id", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(allowedEmailsTable).where(eq(allowedEmailsTable.id, id));
   res.json({ success: true });
@@ -370,7 +370,7 @@ router.get("/master/registration-requests", requireMaster, async (_req, res): Pr
 });
 
 router.patch("/master/registration-requests/:id/approve", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [request] = await db
@@ -388,7 +388,7 @@ router.patch("/master/registration-requests/:id/approve", requireMaster, async (
 });
 
 router.patch("/master/registration-requests/:id/reject", requireMaster, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   await db
