@@ -116,7 +116,7 @@ router.post("/tables/:tableId/reopen", requireAuth, async (req: AuthenticatedReq
           eq(ordersTable.status, "finalizado")
         )
       );
-    orders = orders.filter(o => orderIds.includes(o.id));
+    orders = orders.filter((o: any) => orderIds.includes(o.id));
   } else {
     const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
     orders = await db
@@ -138,7 +138,7 @@ router.post("/tables/:tableId/reopen", requireAuth, async (req: AuthenticatedReq
   }
 
   await Promise.all(
-    orders.map(o =>
+    orders.map((o: any) =>
       db.update(ordersTable).set({ status: "pronto" }).where(eq(ordersTable.id, o.id))
     )
   );
